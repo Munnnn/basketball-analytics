@@ -22,7 +22,7 @@ class Settings:
     # Processing
     default_batch_size: int = 20
     default_device: str = "cuda"
-    max_frames_per_video: int = 10000
+    max_frames_per_video: int = 500000
     
     # Detection
     detection_confidence: float = 0.2
