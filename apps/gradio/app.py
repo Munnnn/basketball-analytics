@@ -1,3 +1,4 @@
+
 """
 Main Gradio application
 """
@@ -9,22 +10,22 @@ from .callbacks import VideoAnalysisCallbacks
 
 def create_app():
     """Create Gradio application"""
-    
+
     # Initialize callbacks
     callbacks = VideoAnalysisCallbacks()
-    
+
     # Create UI
     with gr.Blocks(title="🏀 Basketball Analytics", theme=gr.themes.Soft()) as app:
         gr.Markdown("""
         # 🏀 Basketball Analytics System
-        
-        Advanced AI-powered basketball analysis with player tracking, team identification, 
+
+        Advanced AI-powered basketball analysis with player tracking, team identification,
         and play classification.
         """)
-        
+
         # Create UI components
         components = create_ui_components()
-        
+
         # Wire up callbacks
         components['analyze_btn'].click(
             fn=callbacks.analyze_video,
@@ -43,18 +44,18 @@ def create_app():
             ],
             show_progress=True
         )
-        
+
         components['reset_btn'].click(
             fn=callbacks.reset_system,
             outputs=[components['status_output']]
         )
-        
+
         components['export_btn'].click(
             fn=callbacks.export_analytics,
             inputs=[components['export_format']],
             outputs=[components['download_output']]
         )
-        
+
     return app
 
 
@@ -65,4 +66,4 @@ def launch_app(share: bool = False, port: int = 7860):
 
 
 if __name__ == "__main__":
-    launch_app()
+    launch_app(share=True)
