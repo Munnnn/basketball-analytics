@@ -3,7 +3,7 @@ Basketball Analytics System
 
 A comprehensive AI-powered system for analyzing basketball games with:
 - Player and ball tracking
-- Team identification
+- Team identification  
 - Play classification
 - Possession analysis
 - Event detection
@@ -22,6 +22,11 @@ from .pipeline import VideoProcessor, ProcessorConfig
 
 from .apps.gradio import create_app, launch_app
 
+# Import enhanced components
+from .team_identification import AdvancedTeamClassificationManager
+from .analytics.possession import EnhancedPossessionTracker
+from .tracking import EnhancedTracker
+
 __all__ = [
     # Core models
     'Detection', 'Track', 'Team', 'Player',
@@ -29,6 +34,11 @@ __all__ = [
     
     # Pipeline
     'VideoProcessor', 'ProcessorConfig',
+    
+    # Enhanced Components
+    'AdvancedTeamClassificationManager',
+    'EnhancedPossessionTracker', 
+    'EnhancedTracker',
     
     # Apps
     'create_app', 'launch_app',

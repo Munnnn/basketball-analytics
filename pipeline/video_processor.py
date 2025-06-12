@@ -21,6 +21,9 @@ from io import VideoReader, VideoWriter, StreamingWriter
 from utils import MemoryMonitor, cleanup_resources
 from pipeline.frame_processor import FrameProcessor
 from pipeline.batch_optimizer import BatchOptimizer
+from team_identification import AdvancedTeamClassificationManager
+from analytics.possession import EnhancedPossessionTracker, PossessionContext
+from tracking import EnhancedTracker
 
 # Basketball-specific constants from original code
 PLAYER_ID = 5
@@ -138,8 +141,18 @@ class VideoProcessor:
             minimum_consecutive_frames=self.config.min_consecutive_frames,
             max_tracks=self.config.max_tracks,
             use_basketball_logic=True,
-            enable_team_identification=True
+            enable_team_identification=True,
+            enable_enhanced_possession=True
         )
+
+        # Enhanced basketball analytics with integrated modules
+        if self.config.enable_possession_tracking:
+            self.possession_tracker = EnhancedPossessionTracker(
+                basketball_enhanced=True,
+                context_tracking=self.config.enable_context_tracking
+            )
+        else:
+            self.possession_tracker = None
 
         # Unified team classification with basketball intelligence
         self.team_classifier = UnifiedTeamClassifier(
@@ -149,15 +162,6 @@ class VideoProcessor:
             basketball_5v5_balancing=self.config.basketball_5v5_balancing,
             device=device
         )
-
-        # Enhanced basketball analytics
-        if self.config.enable_possession_tracking:
-            self.possession_tracker = PossessionTracker(
-                basketball_enhanced=True,
-                context_tracking=self.config.enable_context_tracking
-            )
-        else:
-            self.possession_tracker = None
 
         if self.config.enable_play_classification:
             self.play_classifier = PlayClassifier(

@@ -12,6 +12,9 @@ from .algorithms import TrackAssociator, KalmanTracker
 from .features import AppearanceExtractor
 from .memory import MemoryOptimizer
 
+from team_identification.advanced_manager import AdvancedTeamClassificationManager
+from analytics.possession.enhanced_tracker import EnhancedPossessionTracker
+from analytics.possession.context import PossessionContext
 
 class EnhancedTracker(Tracker):
     """Enhanced multi-object tracker for basketball analytics with FIXED integration"""
@@ -25,7 +28,8 @@ class EnhancedTracker(Tracker):
                  use_kalman: bool = True,
                  use_appearance: bool = False,
                  use_basketball_logic: bool = True,
-                 enable_team_identification: bool = True):
+                 enable_team_identification: bool = True,
+                 enable_enhanced_possession: bool = True):
         """
         Initialize enhanced tracker
         
@@ -68,17 +72,27 @@ class EnhancedTracker(Tracker):
         else:
             self.appearance_extractor = None
 
-        #Add advanced team classification manager
+        # Add advanced team classification manager integration
         if enable_team_identification:
-            from team_identification.advanced_manager import AdvancedTeamClassificationManager
             self.team_classification_manager = AdvancedTeamClassificationManager(
                 enhanced_tracker=self,
                 device='cuda',
                 max_crops=5000
             )
         else:
-            self.team_classification_manager = None             
+            self.team_classification_manager = None
             
+        # Add enhanced possession tracking integration  
+        if enable_enhanced_possession:
+            self.enhanced_possession_tracker = EnhancedPossessionTracker(
+                basketball_enhanced=True,
+                context_tracking=True
+            )
+            self.possession_context = PossessionContext(context_window=3)
+        else:
+            self.enhanced_possession_tracker = None
+            self.possession_context = None
+
         # Memory optimizer
         self.memory_optimizer = MemoryOptimizer()
 

@@ -9,7 +9,8 @@ import logging
 
 from core import Detection, Track, PossessionInfo, PlayEvent, BasketballAction
 from core.constants import PLAYER_ID, BALL_ID, REF_ID, HOOP_ID, BACKBOARD_ID
-
+from team_identification import AdvancedTeamClassificationManager
+from analytics.possession import EnhancedPossessionTracker
 
 class FrameProcessor:
     """Process individual frames with basketball analytics"""
@@ -41,8 +42,8 @@ class FrameProcessor:
         self.detector = detector
         self.mask_generator = mask_generator
         self.tracker = tracker
-        self.team_classifier = team_classifier
-        self.possession_tracker = possession_tracker
+        self.team_classifier = tracker.team_classification_manager if hasattr(tracker, 'team_classification_manager') else team_classifier
+        self.possession_tracker = tracker.enhanced_possession_tracker if hasattr(tracker, 'enhanced_possession_tracker') else possession_tracker
         self.event_detector = event_detector
         self.pose_estimator = pose_estimator
         self.frame_annotator = frame_annotator
