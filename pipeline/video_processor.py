@@ -17,7 +17,7 @@ from team_identification import UnifiedTeamClassifier
 from analytics import PossessionTracker, PlayClassifier, EventDetector, TimelineGenerator
 from analytics.pose import PoseEstimator, ActionDetector
 from visualization import FrameAnnotator
-from io import VideoReader, VideoWriter, StreamingWriter
+from video_io import VideoReader, VideoWriter, StreamingWriter
 from utils import MemoryMonitor, cleanup_resources
 from pipeline.frame_processor import FrameProcessor
 from pipeline.batch_optimizer import BatchOptimizer

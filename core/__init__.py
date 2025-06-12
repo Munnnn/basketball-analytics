@@ -5,7 +5,7 @@ Core domain models and interfaces for basketball analytics system
 
 from .models import (
     Detection, Track, TrackState, Team, Player,
-    PossessionInfo, PlayEvent, AnalysisResult, PlayClassification
+    PossessionInfo, PlayEvent, AnalysisResult, PlayClassification, BasketballAction
 )
 from .interfaces import (
     Detector, Tracker, TeamClassifier, Analyzer,
@@ -19,7 +19,7 @@ from .constants import (
 __all__ = [
     # Models
     'Detection', 'Track', 'TrackState', 'Team', 'Player',
-    'PossessionInfo', 'PlayEvent', 'AnalysisResult',
+    'PossessionInfo', 'PlayEvent', 'AnalysisResult', 'BasketballAction'
     # Interfaces
     'Detector', 'Tracker', 'TeamClassifier', 'Analyzer',
     'Visualizer', 'FrameProcessor', 'MaskGenerator',
