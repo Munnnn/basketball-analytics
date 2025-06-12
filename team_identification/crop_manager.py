@@ -6,6 +6,7 @@ import numpy as np
 import cv2
 from typing import List, Optional, Tuple
 import os
+import tempfile 
 import logging
 
 
@@ -21,7 +22,7 @@ class CropManager:
             temp_dir: Temporary directory for crop storage
         """
         self.max_crops = max_crops
-        self.temp_dir = temp_dir or os.path.join(os.path.tempdir, "basketball_crops")
+        self.temp_dir = temp_dir or os.path.join(tempfile.gettempdir(), "basketball_crops")
         self.crops = []
         self.crop_metadata = []
         
