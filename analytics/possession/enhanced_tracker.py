@@ -35,7 +35,8 @@ class EnhancedPossessionTracker(PossessionTracker):
         # Enhanced components
         if context_tracking:
             self.possession_context = PossessionContext(context_window=3)
-            self.pose_estimator = PoseEstimator(use_openpose=True)
+            # Fixed: Remove the use_openpose parameter
+            self.pose_estimator = PoseEstimator()
             self.action_detector = ActionDetector()
         else:
             self.possession_context = None
@@ -76,7 +77,7 @@ class EnhancedPossessionTracker(PossessionTracker):
         if self.pose_estimator and len(player_detections) > 0:
             try:
                 crops = self._extract_player_crops(frame_data.get('frame'), player_detections)
-                poses = self.pose_estimator.extract_poses_from_crops(crops)
+                poses = self.pose_estimator.extract_poses(crops)
             except Exception as e:
                 print(f"Pose extraction failed: {e}")
                 poses = [None] * len(player_detections)
