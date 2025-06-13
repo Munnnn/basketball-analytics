@@ -261,72 +261,72 @@ class AdvancedTeamClassificationManager:
 
         return interval_trigger or crop_trigger
 
-def update_with_frame(self, frame: np.ndarray, detections, frame_idx: int) -> Tuple[np.ndarray, float]:
-    """
-    Main update method that integrates all existing modules with memory optimization
-    """
-    team_assignments = np.array([])
-    confidence = 0.0
-
-    if detections is None or len(detections) == 0:
-        return team_assignments, confidence
-
-    # Memory cleanup check
-    if frame_idx - self.last_memory_cleanup >= self.memory_cleanup_interval:
-        self.cleanup_memory()
-        self.last_memory_cleanup = frame_idx
-        self.log_memory_usage(f"After cleanup at frame {frame_idx}")
-
-    print(f"🏀 Frame {frame_idx} - Processing {len(detections)} detections")
-
-    # Only process feature extraction at intervals to save memory
-    should_extract_features = (frame_idx % self.feature_extraction_interval == 0)
-
-    # Collect crops if not initialized
-    if not self.teams_initialized:
-        if should_extract_features:  # Only collect crops at intervals
-            crops_added = self.collect_crops_from_detections(frame, detections, frame_idx)
-            if crops_added > 0:
-                self.initialization_frames += 1
-
-        # Try to initialize using existing unified classifier
-        if (self.initialization_frames >= self.min_initialization_frames or
-            (frame_idx % 25 == 0 and self.crop_manager.get_crop_count() >= 25)):
-            if self.initialize_team_classifier():
-                print(f"🎉 Team classifier initialized at frame {frame_idx}")
-
-    # Continue collecting crops for potential retraining
-    else:
-        if frame_idx % 10 == 0:  # Sample less frequently to save memory
-            self.collect_crops_from_detections(frame, detections, frame_idx)
-
-    # Predict teams if initialized using existing modules
-    if self.teams_initialized:
-        # Only do full prediction at intervals, otherwise use cached results
-        if should_extract_features:
-            # Check if we should retrain
-            if self.should_retrain(frame_idx):
-                print(f"🔄 Retraining classifier at frame {frame_idx}")
-                self.last_retrain_frame = frame_idx
-                self.retraining_count += 1
-
-            # Get team predictions using integrated approach
-            team_assignments, confidence = self.predict_teams(frame, detections)
-            
-            # Cache the results for frames between intervals
-            self.cached_assignments = team_assignments
-            self.cached_confidence = confidence
+    def update_with_frame(self, frame: np.ndarray, detections, frame_idx: int) -> Tuple[np.ndarray, float]:
+        """
+        Main update method that integrates all existing modules with memory optimization
+        """
+        team_assignments = np.array([])
+        confidence = 0.0
+    
+        if detections is None or len(detections) == 0:
+            return team_assignments, confidence
+    
+        # Memory cleanup check
+        if frame_idx - self.last_memory_cleanup >= self.memory_cleanup_interval:
+            self.cleanup_memory()
+            self.last_memory_cleanup = frame_idx
+            self.log_memory_usage(f"After cleanup at frame {frame_idx}")
+    
+        print(f"🏀 Frame {frame_idx} - Processing {len(detections)} detections")
+    
+        # Only process feature extraction at intervals to save memory
+        should_extract_features = (frame_idx % self.feature_extraction_interval == 0)
+    
+        # Collect crops if not initialized
+        if not self.teams_initialized:
+            if should_extract_features:  # Only collect crops at intervals
+                crops_added = self.collect_crops_from_detections(frame, detections, frame_idx)
+                if crops_added > 0:
+                    self.initialization_frames += 1
+    
+            # Try to initialize using existing unified classifier
+            if (self.initialization_frames >= self.min_initialization_frames or
+                (frame_idx % 25 == 0 and self.crop_manager.get_crop_count() >= 25)):
+                if self.initialize_team_classifier():
+                    print(f"🎉 Team classifier initialized at frame {frame_idx}")
+    
+        # Continue collecting crops for potential retraining
         else:
-            # Use cached results for frames between intervals
-            if hasattr(self, 'cached_assignments') and len(self.cached_assignments) == len(detections):
-                team_assignments = self.cached_assignments
-                confidence = self.cached_confidence
+            if frame_idx % 10 == 0:  # Sample less frequently to save memory
+                self.collect_crops_from_detections(frame, detections, frame_idx)
+    
+        # Predict teams if initialized using existing modules
+        if self.teams_initialized:
+            # Only do full prediction at intervals, otherwise use cached results
+            if should_extract_features:
+                # Check if we should retrain
+                if self.should_retrain(frame_idx):
+                    print(f"🔄 Retraining classifier at frame {frame_idx}")
+                    self.last_retrain_frame = frame_idx
+                    self.retraining_count += 1
+    
+                # Get team predictions using integrated approach
+                team_assignments, confidence = self.predict_teams(frame, detections)
+                
+                # Cache the results for frames between intervals
+                self.cached_assignments = team_assignments
+                self.cached_confidence = confidence
             else:
-                # Fallback to simple assignment if no cache
-                team_assignments = np.array([i % 2 for i in range(len(detections))])
-                confidence = 0.5
-
-    return team_assignments, confidence
+                # Use cached results for frames between intervals
+                if hasattr(self, 'cached_assignments') and len(self.cached_assignments) == len(detections):
+                    team_assignments = self.cached_assignments
+                    confidence = self.cached_confidence
+                else:
+                    # Fallback to simple assignment if no cache
+                    team_assignments = np.array([i % 2 for i in range(len(detections))])
+                    confidence = 0.5
+    
+        return team_assignments, confidence
 
     def get_basketball_statistics(self) -> Dict:
         """Get basketball-specific statistics"""
