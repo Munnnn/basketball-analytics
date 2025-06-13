@@ -155,45 +155,59 @@ class VideoProcessor:
             self.possession_tracker = None
 
         # Unified team classification with basketball intelligence
+        #self.team_classifier = UnifiedTeamClassifier(
+        #    use_ml=self.config.use_ml_classification,
+        #    use_color_fallback=self.config.use_color_fallback,
+        #    enforce_basketball_rules=self.config.enforce_basketball_rules,
+        #    basketball_5v5_balancing=self.config.basketball_5v5_balancing,
+        #    device=device
+        #)
         self.team_classifier = UnifiedTeamClassifier(
             use_ml=self.config.use_ml_classification,
             use_color_fallback=self.config.use_color_fallback,
             enforce_basketball_rules=self.config.enforce_basketball_rules,
-            basketball_5v5_balancing=self.config.basketball_5v5_balancing,
             device=device
         )
 
         if self.config.enable_play_classification:
-            self.play_classifier = PlayClassifier(
-                basketball_play_types=True,
-                context_aware=self.config.enable_context_tracking
-            )
+            #self.play_classifier = PlayClassifier(
+            #    basketball_play_types=True,
+            #    context_aware=self.config.enable_context_tracking
+            #)
+            self.play_classifier = PlayClassifier()
         else:
             self.play_classifier = None
 
         if self.config.enable_event_detection:
-            self.event_detector = EventDetector(basketball_events=True)
+            #self.event_detector = EventDetector(basketball_events=True)
+            self.event_detector = EventDetector()
         else:
             self.event_detector = None
 
         if self.config.enable_pose_estimation:
-            self.pose_estimator = PoseEstimator(basketball_actions=True)
-            self.action_detector = ActionDetector(
-                detect_screens=True, detect_cuts=True
-            )
+            #self.pose_estimator = PoseEstimator(basketball_actions=True)
+            self.pose_estimator = PoseEstimator()
+            #self.action_detector = ActionDetector(
+            #    detect_screens=True, detect_cuts=True
+            #)
+            self.action_detector = ActionDetector()
         else:
             self.pose_estimator = None
             self.action_detector = None
 
         # Timeline generator with basketball context
-        self.timeline_generator = TimelineGenerator(basketball_timeline=True)
+        #self.timeline_generator = TimelineGenerator(basketball_timeline=True)
+        self.timeline_generator = TimelineGenerator()
 
         # Basketball-aware visualization
         if self.config.enable_visualization:
+            #self.frame_annotator = FrameAnnotator(
+            #    use_ellipse=self.config.use_ellipse_annotation,
+            #    team_aware_colors=self.config.team_aware_colors,
+            #    basketball_overlays=True
+            #)
             self.frame_annotator = FrameAnnotator(
-                use_ellipse=self.config.use_ellipse_annotation,
-                team_aware_colors=self.config.team_aware_colors,
-                basketball_overlays=True
+                use_ellipse=self.config.use_ellipse_annotation
             )
         else:
             self.frame_annotator = None
@@ -260,6 +274,12 @@ class VideoProcessor:
                 height=video_info['height'],
                 basketball_codec=True
             )
+            #video_writer = VideoWriter(
+            #    self.config.output_video_path,
+            #    fps=video_info['fps'],
+            #    width=video_info['width'],
+            #    height=video_info['height']
+            #)
 
         # Initialize streaming writer
         streaming_writer = None
@@ -457,7 +477,7 @@ class VideoProcessor:
 
     def _extract_synchronized_teams(self, tracks: List[Track]) -> List[Dict]:
         """Extract basketball team information with synchronized validation"""
-        teams = {0: {'id': 0, 'players': [], 'name': 'Team 0'}, 
+        teams = {0: {'id': 0, 'players': [], 'name': 'Team 0'},
                  1: {'id': 1, 'players': [], 'name': 'Team 1'}}
 
         for track in tracks:
@@ -467,7 +487,7 @@ class VideoProcessor:
         # Synchronized basketball validation
         team0_count = len(teams[0]['players'])
         team1_count = len(teams[1]['players'])
-        
+
         if abs(team0_count - team1_count) > 3:
             self.logger.warning(f"Synchronized basketball team imbalance: T0={team0_count}, T1={team1_count}")
 
@@ -533,3 +553,4 @@ class VideoProcessor:
             stats['team_classifier'] = self.team_classifier.get_basketball_statistics()
 
         return stats
+
