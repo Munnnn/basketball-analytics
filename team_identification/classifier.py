@@ -142,7 +142,7 @@ class UnifiedTeamClassifier(TeamClassifierInterface):
         }
 
     def extract_features(self, crops: List[np.ndarray]) -> np.ndarray:
-        """Extract features using SiglipVisionModel - ORIGINAL METHOD"""
+        """Extract features using SiglipVisionModel with memory optimization"""
         if len(crops) == 0:
             return np.array([]).reshape(0, -1)
 
@@ -163,19 +163,29 @@ class UnifiedTeamClassifier(TeamClassifierInterface):
 
         data = []
         with torch.no_grad():
-            for batch in tqdm(batches, desc='🔍 Extracting features'):
+            for i, batch in enumerate(tqdm(batches, desc='🔍 Extracting features')):
                 try:
                     inputs = self.processor(images=batch, return_tensors="pt").to(self.device)
                     outputs = self.features_model(**inputs)
                     embeddings = torch.mean(outputs.last_hidden_state, dim=1).cpu().numpy()
                     data.append(embeddings)
+                    
+                    # Clean up GPU memory after each batch
+                    del inputs, outputs
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                        
                 except Exception as e:
-                    logging.warning(f"Feature extraction failed for batch: {e}")
+                    logging.warning(f"Feature extraction failed for batch {i}: {e}")
                     continue
 
         if data:
             features = np.concatenate(data)
             print(f"🔍 DEBUG: Feature extraction complete - shape: {features.shape}")
+            
+            # Force garbage collection after feature extraction
+            gc.collect()
+            
             return features
         else:
             print("❌ DEBUG: Feature extraction failed - no valid features extracted")
@@ -427,3 +437,4 @@ class UnifiedTeamClassifier(TeamClassifierInterface):
         """Update classifier with correction feedback"""
         # Store feedback for adaptive learning
         pass
+

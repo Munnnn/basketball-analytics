@@ -135,23 +135,33 @@ class VideoAnalysisCallbacks:
 
     def _generate_analysis_summary(self, result, file_size_mb: float) -> str:
         """Generate a comprehensive analysis summary"""
+        
+        # Fix for teams being dictionaries
+        player_assignments = 0
+        if hasattr(result, 'teams') and result.teams:
+            for team in result.teams:
+                if isinstance(team, dict):
+                    player_assignments += len(team.get('players', []))
+                else:
+                    player_assignments += len(team.players)
+        
         summary = f"""✅ Analysis Complete!
 
-📊 **Processing Summary:**
-• Video Size: {file_size_mb:.1f} MB
-• Frames Processed: {result.processed_frames}
-• Players Tracked: {len(result.tracks)}
-• Total Possessions: {len(result.possessions)}
-• Events Detected: {len(result.events)}
+    📊 **Processing Summary:**
+    - Video Size: {file_size_mb:.1f} MB
+    - Frames Processed: {result.processed_frames}
+    - Players Tracked: {len(result.tracks)}
+    - Total Possessions: {len(result.possessions)}
+    - Events Detected: {len(result.events)}
 
-🏀 **Team Analysis:**
-• Teams Identified: {len(result.teams)}
-• Player Assignments: {sum(len(team.players) for team in result.teams)}
+    🏀 **Team Analysis:**
+    - Teams Identified: {len(result.teams)}
+    - Player Assignments: {player_assignments}
 
-⏱️ **Performance:**
-• Processing completed successfully
-• All outputs generated
-"""
+    ⏱️ **Performance:**
+    - Processing completed successfully
+    - All outputs generated
+    """
         return summary
 
     def validate_path(self, path: str) -> str:
@@ -292,3 +302,4 @@ class VideoAnalysisCallbacks:
         </style>
         """
         return html
+

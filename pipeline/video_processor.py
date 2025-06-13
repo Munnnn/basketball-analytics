@@ -85,6 +85,11 @@ class ProcessorConfig:
     memory_optimization: bool = True
     adaptive_batching: bool = True  # NEW: Use adaptive batch optimization
 
+    # Memory optimization
+    memory_optimization: bool = True
+    memory_cleanup_interval: int = 50
+    feature_extraction_interval: int = 5
+    max_batch_size_memory_limited: int = 10  # Reduced batch size for memory constraints
 
 class VideoProcessor:
     """Main video processing pipeline with synchronized components"""
@@ -369,6 +374,8 @@ class VideoProcessor:
 
         # Process batches
         batch_count = 0
+        frames_since_cleanup = 0
+
         for batch in batch_generator:
             batch_count += 1
             batch_start_time = time.time()
@@ -403,6 +410,20 @@ class VideoProcessor:
                 if progress_callback:
                     progress = results['frames_processed'] / len(frame_data)
                     progress_callback(progress)
+
+                frames_since_cleanup += 1
+                
+                # Periodic memory cleanup
+                if frames_since_cleanup >= self.config.memory_cleanup_interval:
+                    cleanup_resources()
+                    frames_since_cleanup = 0
+                    
+                    if self.memory_monitor:
+                        self.memory_monitor.check_memory(f"After cleanup at frame {frame_idx}")
+
+            # Clean up after each batch
+            del batch
+            gc.collect()                    
 
             # Log batch processing
             batch_time = time.time() - batch_start_time
@@ -521,8 +542,7 @@ class VideoProcessor:
             # NEW: Synchronized processing metadata
             synchronized_processing=True,
             frame_processor_stats=results.get('frame_processor_stats', {}),
-            batch_optimizer_stats=results.get('batch_optimizer_stats', {}),
-            adaptive_batching_enabled=self.config.adaptive_batching
+            batch_optimizer_stats=results.get('batch_optimizer_stats', {})
         )
 
     def _save_synchronized_analytics(self, analysis_result: AnalysisResult):
@@ -553,4 +573,5 @@ class VideoProcessor:
             stats['team_classifier'] = self.team_classifier.get_basketball_statistics()
 
         return stats
+
 
