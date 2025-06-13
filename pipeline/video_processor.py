@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Generator
 import numpy as np
 import cv2
+import gc
 
 from core import AnalysisResult, Detection, Track, PlayEvent
 from detection import YoloDetector, MaskGenerator, BatchProcessor
