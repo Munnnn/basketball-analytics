@@ -53,3 +53,52 @@ def check_memory_threshold(threshold_percent=85):
         return True
     
     return False
+
+def optimize_memory_usage():
+    """Comprehensive memory optimization"""
+    # Force garbage collection
+    gc.collect()
+    
+    # CUDA memory optimization
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
+        # Set memory fraction to prevent OOM
+        try:
+            torch.cuda.set_per_process_memory_fraction(0.8)
+        except:
+            pass
+    
+    # System-level optimization
+    try:
+        import os
+        if hasattr(os, 'sched_yield'):
+            os.sched_yield()
+    except:
+        pass
+
+def force_cleanup_large_objects(*objects):
+    """Force cleanup of specific large objects"""
+    for obj in objects:
+        if obj is not None:
+            del obj
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+class MemoryManager:
+    """Context manager for memory-intensive operations"""
+    
+    def __init__(self, operation_name="operation"):
+        self.operation_name = operation_name
+        self.start_memory = None
+    
+    def __enter__(self):
+        self.start_memory = get_memory_info()
+        logging.debug(f"Starting {self.operation_name}: {self.start_memory['rss_mb']:.1f}MB")
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        cleanup_memory(self.operation_name)
+        end_memory = get_memory_info()
+        logging.debug(f"Finished {self.operation_name}: {end_memory['rss_mb']:.1f}MB")

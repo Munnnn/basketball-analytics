@@ -18,6 +18,7 @@ from .crop_manager import CropManager
 from .basketball_rules import BasketballTeamBalancer
 from .ml_classifier import MLTeamClassifier
 from .color_classifier import ColorBasedClassifier
+from utils.memory_utils import cleanup_memory, force_cleanup_large_objects, MemoryManager
 
 
 class AdvancedTeamClassificationManager:
@@ -31,13 +32,20 @@ class AdvancedTeamClassificationManager:
     def __init__(self, enhanced_tracker, device: str = 'cuda', max_crops: int = 5000):
         self.enhanced_tracker = enhanced_tracker
         self.device = device
-        self.max_crops = max_crops
+        # Reduce max crops to prevent memory issues
+        self.max_crops = min(max_crops, 2000)  # Limit to 2000 crops max
+        
         # Memory optimization parameters
-        self.feature_extraction_interval = 5  # Extract features every N frames
-        self.memory_cleanup_interval = 20  # Clean memory every N frames
-        self.max_crop_storage = 1000  # Maximum crops to keep in memory
+        self.feature_extraction_interval = 5
+        self.memory_cleanup_interval = 20
+        self.max_crop_storage = 500  # Reduced from 1000
         self.last_memory_cleanup = 0
         self.enable_memory_logging = True
+
+        # Reuse variables to prevent memory accumulation
+        self.cached_assignments = np.array([])
+        self.cached_confidence = 0.0
+        self.temp_crops = []  # Reusable crop list
 
         # Initialize using existing modules
         self.unified_classifier = UnifiedTeamClassifier(
@@ -45,11 +53,11 @@ class AdvancedTeamClassificationManager:
             use_color_fallback=True,
             enforce_basketball_rules=True,
             device=device,
-            max_crops=max_crops
+            max_crops=self.max_crops
         )
 
         # Crop management using existing module
-        self.crop_manager = CropManager(max_crops=max_crops)
+        self.crop_manager = CropManager(max_crops=self.max_crops)
 
         # Basketball team balancing using existing module
         self.team_balancer = BasketballTeamBalancer()
@@ -83,19 +91,28 @@ class AdvancedTeamClassificationManager:
             print(f"💾 {step_name}: Memory usage: {mem_info.rss / 1024 / 1024:.1f} MB")
 
     def cleanup_memory(self):
-        """Force memory cleanup"""
+        """Enhanced memory cleanup with more aggressive optimization"""
+        # Clear Python objects
         gc.collect()
+        
+        # Clear CUDA cache
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
+            torch.cuda.synchronize()
         
-        # Clear old crops if we have too many
+        # Clear excess crops more aggressively
         if self.crop_manager.get_crop_count() > self.max_crop_storage:
-            print(f"🧹 Clearing excess crops: {self.crop_manager.get_crop_count()} -> {self.max_crop_storage}")
             # Keep only the most recent crops
-            current_crops = self.crop_manager.crops[-self.max_crop_storage:]
-            current_metadata = self.crop_manager.crop_metadata[-self.max_crop_storage:]
-            self.crop_manager.crops = current_crops
-            self.crop_manager.crop_metadata = current_metadata
+            current_count = self.crop_manager.get_crop_count()
+            keep_count = self.max_crop_storage // 2  # Keep only half
+            
+            self.crop_manager.crops = self.crop_manager.crops[-keep_count:]
+            self.crop_manager.crop_metadata = self.crop_manager.crop_metadata[-keep_count:]
+            
+            print(f"🧹 Aggressive crop cleanup: {current_count} -> {len(self.crop_manager.crops)} crops")
+        
+        # Clear temporary variables
+        self.temp_crops.clear()
 
     def is_initialized(self) -> bool:
         """Check if the team classifier is initialized - THE MISSING METHOD"""
@@ -142,28 +159,45 @@ class AdvancedTeamClassificationManager:
             print("⚠️ AdvancedTeamClassificationManager: Training attempted but initialization incomplete")
 
     def collect_crops_from_detections(self, frame: np.ndarray, detections, frame_idx: int) -> int:
-        """Collect crops from player detections using existing crop manager"""
+        """Collect crops with memory optimization - reuse temp_crops list"""
         crops_added = 0
-
+        
         if detections is None or len(detections) == 0:
             return 0
 
-        # Extract player crops using existing crop manager functionality
-        for player_idx, bbox in enumerate(detections.xyxy):
+        # Clear and reuse temp_crops list
+        self.temp_crops.clear()
+        
+        # Limit crop collection to prevent memory issues
+        max_crops_this_frame = min(len(detections), 10)
+        
+        for player_idx in range(max_crops_this_frame):
             if self.crop_manager.get_crop_count() >= self.max_crops:
+                break
+                
+            if player_idx >= len(detections.xyxy):
                 break
 
             try:
-                # Extract crop using existing crop manager methods
+                bbox = detections.xyxy[player_idx]
                 crop = self.crop_manager.extract_crop(frame, bbox)
 
-                if crop is not None and self.crop_manager.add_crop(crop, {'frame_idx': frame_idx, 'player_idx': player_idx}):
-                    crops_added += 1
-
+                if crop is not None:
+                    # Store in temp list first
+                    self.temp_crops.append((crop, {'frame_idx': frame_idx, 'player_idx': player_idx}))
+                    
             except Exception as e:
                 logging.warning(f"Failed to extract crop for player {player_idx}: {e}")
                 continue
 
+        # Add crops from temp list in batch
+        for crop, metadata in self.temp_crops:
+            if self.crop_manager.add_crop(crop, metadata):
+                crops_added += 1
+        
+        # Clear temp list immediately
+        self.temp_crops.clear()
+        
         return crops_added
 
     def initialize_team_classifier(self, max_training_crops: int = 3000) -> bool:
@@ -263,69 +297,71 @@ class AdvancedTeamClassificationManager:
 
     def update_with_frame(self, frame: np.ndarray, detections, frame_idx: int) -> Tuple[np.ndarray, float]:
         """
-        Main update method that integrates all existing modules with memory optimization
+        Optimized update method with aggressive memory management
         """
-        team_assignments = np.array([])
-        confidence = 0.0
-    
+        # Early return for empty detections
         if detections is None or len(detections) == 0:
-            return team_assignments, confidence
-    
-        # Memory cleanup check
+            return np.array([]), 0.0
+
+        # Memory cleanup check - more frequent
         if frame_idx - self.last_memory_cleanup >= self.memory_cleanup_interval:
             self.cleanup_memory()
             self.last_memory_cleanup = frame_idx
-            self.log_memory_usage(f"After cleanup at frame {frame_idx}")
-    
-        print(f"🏀 Frame {frame_idx} - Processing {len(detections)} detections")
-    
+
         # Only process feature extraction at intervals to save memory
         should_extract_features = (frame_idx % self.feature_extraction_interval == 0)
-    
-        # Collect crops if not initialized
+
+        # Collect crops if not initialized (less frequently)
         if not self.teams_initialized:
-            if should_extract_features:  # Only collect crops at intervals
-                crops_added = self.collect_crops_from_detections(frame, detections, frame_idx)
-                if crops_added > 0:
-                    self.initialization_frames += 1
-    
-            # Try to initialize using existing unified classifier
+            if should_extract_features and frame_idx % 3 == 0:  # Even less frequent collection
+                with MemoryManager("crop_collection"):
+                    crops_added = self.collect_crops_from_detections(frame, detections, frame_idx)
+                    if crops_added > 0:
+                        self.initialization_frames += 1
+
+            # Try to initialize (less frequently)
             if (self.initialization_frames >= self.min_initialization_frames or
-                (frame_idx % 25 == 0 and self.crop_manager.get_crop_count() >= 25)):
+                (frame_idx % 50 == 0 and self.crop_manager.get_crop_count() >= 25)):
                 if self.initialize_team_classifier():
                     print(f"🎉 Team classifier initialized at frame {frame_idx}")
-    
-        # Continue collecting crops for potential retraining
+
+        # Continue collecting crops for potential retraining (much less frequently)
         else:
-            if frame_idx % 10 == 0:  # Sample less frequently to save memory
+            if frame_idx % 20 == 0 and should_extract_features:  # Very infrequent collection
                 self.collect_crops_from_detections(frame, detections, frame_idx)
-    
-        # Predict teams if initialized using existing modules
+
+        # Predict teams if initialized
+        team_assignments = np.array([])
+        confidence = 0.0
+        
         if self.teams_initialized:
-            # Only do full prediction at intervals, otherwise use cached results
             if should_extract_features:
-                # Check if we should retrain
-                if self.should_retrain(frame_idx):
+                # Check if we should retrain (less frequently)
+                if frame_idx % 500 == 0 and self.should_retrain(frame_idx):
                     print(f"🔄 Retraining classifier at frame {frame_idx}")
                     self.last_retrain_frame = frame_idx
                     self.retraining_count += 1
-    
-                # Get team predictions using integrated approach
-                team_assignments, confidence = self.predict_teams(frame, detections)
+
+                # Get team predictions
+                with MemoryManager("team_prediction"):
+                    team_assignments, confidence = self.predict_teams(frame, detections)
                 
-                # Cache the results for frames between intervals
-                self.cached_assignments = team_assignments
-                self.cached_confidence = confidence
+                # Cache results and limit cache size
+                if len(team_assignments) <= 15:  # Only cache reasonable sizes
+                    self.cached_assignments = team_assignments.copy()
+                    self.cached_confidence = confidence
             else:
                 # Use cached results for frames between intervals
-                if hasattr(self, 'cached_assignments') and len(self.cached_assignments) == len(detections):
-                    team_assignments = self.cached_assignments
+                if (hasattr(self, 'cached_assignments') and 
+                    len(self.cached_assignments) == len(detections) and
+                    len(self.cached_assignments) <= 15):
+                    team_assignments = self.cached_assignments.copy()
                     confidence = self.cached_confidence
                 else:
-                    # Fallback to simple assignment if no cache
-                    team_assignments = np.array([i % 2 for i in range(len(detections))])
+                    # Fallback to simple assignment
+                    team_assignments = np.array([i % 2 for i in range(min(len(detections), 15))])
                     confidence = 0.5
-    
+
         return team_assignments, confidence
 
     def get_basketball_statistics(self) -> Dict:
@@ -338,4 +374,3 @@ class AdvancedTeamClassificationManager:
             'unified_classifier_stats': self.unified_classifier.get_statistics() if hasattr(self.unified_classifier, 'get_statistics') else {},
             'team_balancer_stats': self.team_balancer.get_balance_statistics() if hasattr(self.team_balancer, 'get_balance_statistics') else {}
         }
-
