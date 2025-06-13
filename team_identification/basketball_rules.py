@@ -5,6 +5,7 @@ Basketball-specific team balancing rules
 import numpy as np
 from typing import List, Dict, Tuple
 import logging
+import cv2
 
 
 class BasketballTeamBalancer:
