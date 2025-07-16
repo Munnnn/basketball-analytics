@@ -113,9 +113,14 @@ class VideoAnalysisCallbacks:
 
             status = self._generate_analysis_summary(self.last_result, file_size_mb)
 
+            # Export CSV of possession segments if available
+            possession_csv_path = self._export_possession_segments()
+            if possession_csv_path:
+                print(f"📤 Possession segments exported to: {possession_csv_path}")
+
             progress(1.0, desc="Complete!")
 
-            return output_video, analytics_json, timeline_html, status
+            return output_video, analytics_json, timeline_html, status, possession_csv_path
 
         except Exception as e:
             import traceback
@@ -133,6 +138,22 @@ class VideoAnalysisCallbacks:
             return video_path.strip() if video_path else None
         return None
 
+    def _export_possession_segments(self) -> Optional[str]:
+        """Export possession segments to CSV"""
+        if not self.last_result or not hasattr(self.last_result, "get_possession_segments"):
+            return None
+    
+        segments = self.last_result.get_possession_segments()
+        if not segments:
+            return None
+    
+        import pandas as pd
+        df = pd.DataFrame(segments)
+    
+        output_path = os.path.join(self.temp_dir, "possession_segments.csv")
+        df.to_csv(output_path, index=False)
+        return output_path
+    
     def _generate_analysis_summary(self, result, file_size_mb: float) -> str:
         """Generate a comprehensive analysis summary"""
         
