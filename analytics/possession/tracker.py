@@ -252,3 +252,17 @@ class PossessionTracker:
                 1: total_duration[1] / max(team_possessions[1], 1)
             }
         }
+
+    def get_possession_segments(self):
+        """Return possession segments as list of dicts: start, end, player, team, duration"""
+        return [
+            {
+                'start_frame': p['start_frame'],
+                'end_frame': p['end_frame'],
+                'team_id': p['team_id'],
+                'player_id': p['player_id'],
+                'duration': p.get('duration', 0)
+            }
+            for p in self.possession_history
+            if p.get('duration', 0) >= self.min_possession_duration
+        ]
