@@ -194,7 +194,11 @@ class FrameProcessor:
                     poses = self.pose_estimator.extract_poses(crops)
                     
                 analytics_data['poses'] = poses
-                
+
+                # Attach pose to each track
+                for track, pose in zip(analytics_data['tracks'], poses):
+                    track.pose = pose  # Store as flat list of keypoints
+
                 # Detect basketball actions (screens, cuts, etc.)
                 if poses and hasattr(self.pose_estimator, 'detect_basketball_actions'):
                     positions = [track.current_position for track in analytics_data['tracks']]
@@ -323,7 +327,68 @@ class FrameProcessor:
                 crops.append(np.zeros((64, 64, 3), dtype=np.uint8))
                 
         return crops
-        
+
+    def _extract_basketball_crops(self, frame: np.ndarray, tracks: List[Track]) -> List[np.ndarray]:
+        """Extract jersey crops using pose keypoints if available"""
+        crops = []
+    
+        for track in tracks:
+            # Try using pose first (more accurate)
+            pose = getattr(track, "pose", None)
+            if pose and isinstance(pose, list) and len(pose) >= 26:  # 13 keypoints min
+                crop = self._extract_jersey_crop_from_pose(frame, pose)
+                if crop is not None:
+                    crops.append(crop)
+                    continue
+    
+            # Fallback to bbox (if no pose or failure)
+            if track.current_bbox is not None:
+                x1, y1, x2, y2 = track.current_bbox.astype(int)
+                x1, y1 = max(0, x1), max(0, y1)
+                x2, y2 = min(frame.shape[1], x2), min(frame.shape[0], y2)
+                if x2 > x1 and y2 > y1:
+                    fallback_crop = frame[y1:y2, x1:x2]
+                    h = fallback_crop.shape[0]
+                    jersey_crop = fallback_crop[:int(h * 0.6), :] if h > 0 else fallback_crop
+                    crops.append(jersey_crop)
+                    continue
+    
+            # Final fallback if bbox is invalid
+            crops.append(np.zeros((64, 64, 3), dtype=np.uint8))
+    
+        return crops
+
+    def _extract_jersey_crop_from_pose(self, frame: np.ndarray, pose: List[float]) -> Optional[np.ndarray]:
+        """
+        Extract torso region using pose keypoints.
+        pose: flat list [x0, y0, x1, y1, ..., xk, yk]
+        """
+        try:
+            # OpenPose/MMPose format assumes:
+            # 5 = left_shoulder, 6 = right_shoulder
+            # 11 = left_hip, 12 = right_hip
+            ls = pose[5*2:5*2+2]
+            rs = pose[6*2:6*2+2]
+            lh = pose[11*2:11*2+2]
+            rh = pose[12*2:12*2+2]
+    
+            x_coords = [ls[0], rs[0], lh[0], rh[0]]
+            y_coords = [ls[1], rs[1], lh[1], rh[1]]
+    
+            x_min = int(max(0, min(x_coords)))
+            x_max = int(min(frame.shape[1], max(x_coords)))
+            y_min = int(max(0, min(y_coords)))
+            y_max = int(min(frame.shape[0], max(y_coords)))
+    
+            if x_max > x_min and y_max > y_min:
+                return frame[y_min:y_max, x_min:x_max]
+    
+        except Exception as e:
+            self.logger.warning(f"Pose jersey crop failed: {e}")
+    
+        return None
+
+    
     def _generate_basketball_team_stats(self, tracks: List[Track]) -> Dict:
         """Generate basketball team statistics"""
         team_stats = {
