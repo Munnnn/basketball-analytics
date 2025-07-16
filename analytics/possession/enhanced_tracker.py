@@ -27,8 +27,9 @@ class EnhancedPossessionTracker(PossessionTracker):
                  min_possession_duration: int = 5,
                  basketball_enhanced: bool = True,
                  context_tracking: bool = True):
-                 self.event_detector = BasketballEventDetector()
-                 self.play_classifier = PlayClassifier()
+        
+        self.event_detector = BasketballEventDetector()
+        self.play_classifier = PlayClassifier()
         
         super().__init__(ball_proximity_threshold, possession_change_threshold, min_possession_duration)
         
