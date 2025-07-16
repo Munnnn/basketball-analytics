@@ -164,6 +164,12 @@ class FrameProcessor:
                 
                 if possession_info and possession_info.possession_change:
                     self.basketball_stats['possession_changes'] += 1
+
+                    play_result = self.possession_tracker.play_classifier.classify_play(
+                        possession_data=possession_info.to_dict(),
+                        context={}
+                    )
+                    possession_info.play = play_result
                     
             # Step 6: Basketball event detection
             if self.event_detector and analytics_data['possession']:

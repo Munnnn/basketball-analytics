@@ -12,7 +12,7 @@ from pathlib import Path
 from pipeline import VideoProcessor, ProcessorConfig
 from config import get_settings, get_model_path
 from utils import cleanup_resources, setup_logging
-
+from collections import Counter
 
 class VideoAnalysisCallbacks:
     """Handle Gradio UI callbacks with file path support"""
@@ -104,6 +104,10 @@ class VideoAnalysisCallbacks:
             
             output_video = config.output_video_path if save_output else None
 
+            analytics_dict = self.last_result.to_dict()
+            analytics_dict['possession_segments'] = self.last_result.get_possession_segments()
+            analytics_json = json.dumps(analytics_dict, indent=2)
+
             analytics_json = json.dumps(
                 self.last_result.to_dict(),
                 indent=2
@@ -166,22 +170,22 @@ class VideoAnalysisCallbacks:
                 else:
                     player_assignments += len(team.players)
         
+        # Breakdown of play types
+        play_counts = Counter([p.play_name for p in result.plays])
+        play_summary = "\n".join([f"  - {k}: {v}" for k, v in play_counts.items()])
+    
         summary = f"""✅ Analysis Complete!
-
+    
     📊 **Processing Summary:**
     - Video Size: {file_size_mb:.1f} MB
     - Frames Processed: {result.processed_frames}
     - Players Tracked: {len(result.tracks)}
     - Total Possessions: {len(result.possessions)}
+    - Plays Classified: {len(result.plays)}
     - Events Detected: {len(result.events)}
-
-    🏀 **Team Analysis:**
-    - Teams Identified: {len(result.teams)}
-    - Player Assignments: {player_assignments}
-
-    ⏱️ **Performance:**
-    - Processing completed successfully
-    - All outputs generated
+    
+    🏀 **Play Type Breakdown:**
+    {play_summary}
     """
         return summary
 
@@ -271,23 +275,86 @@ class VideoAnalysisCallbacks:
 
         return output_path
 
+#    def _generate_timeline_html(self, result) -> str:
+#        """Generate HTML timeline visualization"""
+#        # Create a more detailed timeline
+#        events_html = ""
+#        for i, event in enumerate(result.events[:10]):  # Show first 10 events
+#            events_html += f"""
+#            <div class="timeline-event">
+#                <span class="event-time">Frame {event.frame}</span>
+#                <span class="event-type">{event.type}</span>
+#                <span class="event-description">{event.description}</span>
+#            </div>
+#            """
+#        
+#        html = f"""
+#        <div class="timeline-container" style="font-family: Arial, sans-serif;">
+#            <h3>🏀 Game Timeline</h3>
+#            <div class="stats" style="background: #f0f0f0; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+#                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+#                    <div><strong>Total Possessions:</strong> {len(result.possessions)}</div>
+#                    <div><strong>Total Events:</strong> {len(result.events)}</div>
+#                    <div><strong>Players Tracked:</strong> {len(result.tracks)}</div>
+#                    <div><strong>Frames Processed:</strong> {result.processed_frames}</div>
+#                </div>
+#            </div>
+#            <div class="timeline" style="max-height: 400px; overflow-y: auto;">
+#                <h4>Recent Events:</h4>
+#                {events_html}
+#            </div>
+#        </div>
+#        <style>
+#        .timeline-event {{
+#            padding: 8px;
+#            margin: 5px 0;
+#            border-left: 3px solid #007bff;
+#            background: #f8f9fa;
+#            border-radius: 4px;
+#        }}
+#        .event-time {{
+#            font-weight: bold;
+#            color: #007bff;
+#            margin-right: 10px;
+#        }}
+#        .event-type {{
+#            background: #e9ecef;
+#            padding: 2px 6px;
+#            border-radius: 3px;
+#            font-size: 0.8em;
+#            margin-right: 10px;
+#        }}
+#        </style>
+#        """
+#        return html
+
     def _generate_timeline_html(self, result) -> str:
-        """Generate HTML timeline visualization"""
-        # Create a more detailed timeline
+        """Generate HTML timeline visualization with possession segments"""
+        # Events HTML
         events_html = ""
-        for i, event in enumerate(result.events[:10]):  # Show first 10 events
+        for i, event in enumerate(result.events[:10]):
             events_html += f"""
             <div class="timeline-event">
-                <span class="event-time">Frame {event.frame}</span>
+                <span class="event-time">Frame {event.frame_idx}</span>
                 <span class="event-type">{event.type}</span>
                 <span class="event-description">{event.description}</span>
             </div>
             """
-        
+    
+        # Possession Segments HTML
+        segments_html = ""
+        for seg in result.get_possession_segments()[:10]:  # Only show first 10
+            start = seg.get('start_frame', seg.get('frame_idx'))
+            end = seg.get('end_frame', start + seg.get('duration', 0))
+            team = seg.get('team_id', 'N/A')
+            segments_html += f"<li>Frames {start} → {end} — Team {team}</li>"
+    
         html = f"""
         <div class="timeline-container" style="font-family: Arial, sans-serif;">
             <h3>🏀 Game Timeline</h3>
             <div class="stats" style="background: #f0f0f0; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h4>Possession Segments:</h4>
+                <ul>{segments_html}</ul>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
                     <div><strong>Total Possessions:</strong> {len(result.possessions)}</div>
                     <div><strong>Total Events:</strong> {len(result.events)}</div>
@@ -323,4 +390,4 @@ class VideoAnalysisCallbacks:
         </style>
         """
         return html
-
+    

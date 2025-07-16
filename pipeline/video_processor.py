@@ -493,6 +493,11 @@ class VideoProcessor:
             else:
                 results['plays'] = []
 
+        if self.possession_tracker and hasattr(self.possession_tracker, 'get_possession_segments'):
+            possession_segments = self.possession_tracker.get_possession_segments()
+            self.logger.info(f"Classified {len(possession_segments)} possessions with play types")
+            results['possession_segments'] = possession_segments
+
         results['basketball_stats'] = self.basketball_stats
 
         return results

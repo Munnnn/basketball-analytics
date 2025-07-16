@@ -12,7 +12,8 @@ from .tracker import PossessionTracker
 from .context import PossessionContext
 from ..pose import PoseEstimator, ActionDetector
 from core import Track, PossessionInfo
-
+from ..events import BasketballEventDetector
+from ..plays import PlayClassifier
 
 class EnhancedPossessionTracker(PossessionTracker):
     """
@@ -26,6 +27,8 @@ class EnhancedPossessionTracker(PossessionTracker):
                  min_possession_duration: int = 5,
                  basketball_enhanced: bool = True,
                  context_tracking: bool = True):
+                 self.event_detector = BasketballEventDetector()
+                 self.play_classifier = PlayClassifier()
         
         super().__init__(ball_proximity_threshold, possession_change_threshold, min_possession_duration)
         
@@ -513,15 +516,30 @@ class EnhancedPossessionTracker(PossessionTracker):
         
         return False
 
+#    def get_possession_segments(self):
+#        """Return possession segments as list of dicts: start, end, player, team, duration"""
+#        return [
+#            {
+#                'start_frame': p['start_frame'],
+#                'end_frame': p['end_frame'],
+#                'team_id': p['team_id'],
+#                'player_id': p['player_id'],
+#                'duration': p.get('duration', 0)
+#            }
+#            for p in self.possession_history
+#            if p.get('duration', 0) >= self.min_possession_duration
+#        ]
     def get_possession_segments(self):
-        """Return possession segments as list of dicts: start, end, player, team, duration"""
+        """Return possession segments as list of dicts: start, end, player, team, duration, play type"""
         return [
             {
                 'start_frame': p['start_frame'],
                 'end_frame': p['end_frame'],
                 'team_id': p['team_id'],
                 'player_id': p['player_id'],
-                'duration': p.get('duration', 0)
+                'duration': p.get('duration', 0),
+                'play_type': p.get('play_type'),
+                'play_name': p.get('play_name')
             }
             for p in self.possession_history
             if p.get('duration', 0) >= self.min_possession_duration

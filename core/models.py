@@ -338,6 +338,36 @@ class AnalysisResult:
             play_counts[play_name] = play_counts.get(play_name, 0) + 1
         return play_counts
 
+    def get_possession_segments(self) -> List[Dict[str, Any]]:
+        """Return possession segments with start, end, team_id, and player_id"""
+        segments = []
+        current = None
+        for p in self.possessions:
+            if p.possession_change:
+                if current:
+                    current['end_frame'] = p.frame_idx
+                    segments.append(current)
+                current = {
+                    'start_frame': p.frame_idx,
+                    'team_id': p.team_id,
+                    'player_id': p.player_id
+                }
+            elif current and p.team_id != current['team_id']:
+                # Backup check in case of missed possession_change flag
+                current['end_frame'] = p.frame_idx
+                segments.append(current)
+                current = {
+                    'start_frame': p.frame_idx,
+                    'team_id': p.team_id,
+                    'player_id': p.player_id
+                }
+        # Final open segment
+        if current and 'end_frame' not in current:
+            current['end_frame'] = self.total_frames
+            segments.append(current)
+        return segments
+ 
+
     def _get_possession_stats(self) -> Dict[str, Any]:
         """Get possession statistics"""
         if not self.possessions:
