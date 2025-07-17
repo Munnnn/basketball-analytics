@@ -176,9 +176,23 @@ class PossessionInfo:
     possession_change: bool = False
 
     # Basketball context from enhanced play analysis
-    play_type: Optional[PlayType] = None
+    play_type: Optional['PlayType'] = None
     momentum: float = 0.0  # Team momentum (-1 to 1)
     context: Dict[str, Any] = field(default_factory=dict)  # Additional context
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "frame_idx": self.frame_idx,
+            "player_id": self.player_id,
+            "team_id": self.team_id,
+            "ball_position": self.ball_position.tolist() if isinstance(self.ball_position, np.ndarray) else self.ball_position,
+            "confidence": self.confidence,
+            "duration": self.duration,
+            "possession_change": self.possession_change,
+            "play_type": self.play_type.name if self.play_type else None,
+            "momentum": self.momentum,
+            "context": self.context
+        }
 
 
 @dataclass
@@ -324,9 +338,9 @@ class AnalysisResult:
                 'performance_metrics': self.performance_metrics
             },
             'timeline': {
-                'possessions': [p.__dict__ for p in self.possessions],
-                'plays': [p.__dict__ for p in self.plays],
-                'events': [e.__dict__ for e in self.events]
+                'possessions': [p.to_dict() for p in self.possessions],
+                'plays': [p.to_dict() for p in self.plays],
+                'events': [e.to_dict() for e in self.events]
             }
         }
 
