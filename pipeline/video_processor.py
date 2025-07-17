@@ -45,6 +45,7 @@ class ProcessorConfig:
     batch_size: int = 20
     start_frame: int = 0
     end_frame: Optional[int] = None
+    target_fps: int = 10
 
     # Detection parameters
     detection_confidence: float = 0.2
@@ -255,6 +256,8 @@ class VideoProcessor:
         # Initialize video reader
         video_reader = VideoReader(video_path)
         video_info = video_reader.get_info()
+        target_fps = self.config.target_fps
+        sample_rate = max(1, int(video_info['fps'] // target_fps))
 
         # Determine frame range
         start_frame = self.config.start_frame
@@ -275,11 +278,18 @@ class VideoProcessor:
         if self.config.output_video_path and self.config.enable_visualization:
             video_writer = VideoWriter(
                 self.config.output_video_path,
-                fps=video_info['fps'],
+                fps=target_fps,
                 width=video_info['width'],
                 height=video_info['height'],
                 basketball_codec=True
             )
+            #video_writer = VideoWriter(
+            #    self.config.output_video_path,
+            #    fps=video_info['fps'],
+            #    width=video_info['width'],
+            #    height=video_info['height'],
+            #    basketball_codec=True
+            #)
             #video_writer = VideoWriter(
             #    self.config.output_video_path,
             #    fps=video_info['fps'],
@@ -303,7 +313,8 @@ class VideoProcessor:
                 start_frame,
                 end_frame,
                 optimal_batch_size,
-                progress_callback
+                progress_callback,
+                video_info
             )
 
             # Create basketball analysis result
@@ -337,7 +348,8 @@ class VideoProcessor:
                                    start_frame: int,
                                    end_frame: int,
                                    optimal_batch_size: int,
-                                   progress_callback: Optional[callable]) -> Dict:
+                                   progress_callback: Optional[callable],
+                                   video_info: Dict) -> Dict:
         """Process frames using synchronized FrameProcessor and BatchOptimizer"""
         results = {
             'tracks': [],
@@ -353,8 +365,15 @@ class VideoProcessor:
 
         # Read all frames first for adaptive batching
         frame_generator = video_reader.read_frames(start_frame, end_frame)
-        frame_data = list(frame_generator)  # [(frame, frame_idx), ...]
+        #frame_data = list(frame_generator)  # [(frame, frame_idx), ...]
+        frame_data = [
+            (frame, frame_idx)
+            for i, (frame, frame_idx) in enumerate(frame_generator)
+            if i % sample_rate == 0
+        ]
 
+        self.logger.info(f"Sampling frames at ~{video_info['fps']} -> {target_fps} FPS using sample rate {sample_rate}")
+                                       
         if not frame_data:
             self.logger.warning("No frames to process")
             return results
