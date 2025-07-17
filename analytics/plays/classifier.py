@@ -43,11 +43,20 @@ class PlayTypeClassifier:
         velocities = possession_data.get('velocities', [])
         duration = possession_data.get('duration', 0)
         team_id = possession_data.get('team_id')
-        
+       
+        #debug
+        print(f"[PLAY DEBUG] Classifying play for team {team_id} | Duration: {duration}")
+        print(f"  - Ball position: {ball_position}")
+        print(f"  - Player positions: {player_positions}")
+        print(f"  - Velocities: {velocities}")
+        if duration < 3:
+            print("  ⚠️ Possession duration too short to classify")
+
         # Get base classification
         play_type = self._get_base_classification(
             player_positions, ball_position, velocities, duration
         )
+        print(f"  → Base play type detected: {play_type} ({self.play_types.get(play_type, 'Unknown')})")
         
         # Apply context modifications if available
         if context:

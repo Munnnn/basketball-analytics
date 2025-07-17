@@ -215,7 +215,26 @@ class FrameProcessor:
                     
                     if basketball_actions:
                         self.basketball_stats['pose_actions_detected'] += len(basketball_actions)
-                        
+                      
+            # ✅ Debug info after Step 7 (pose + tracking + ball + possession)
+            if 'poses' in analytics_data and analytics_data['poses'] is not None:
+                self.logger.debug(f"[FrameProcessor] Pose count: {len(analytics_data['poses'])}")
+            else:
+                self.logger.debug("[FrameProcessor] No poses detected")
+            
+            self.logger.debug(f"[FrameProcessor] Track count: {len(analytics_data['tracks'])}")
+            
+            ball_track = self._get_basketball_ball_track(detections_by_class.get('ball', []))
+            if ball_track:
+                self.logger.debug(f"[FrameProcessor] Ball position: {ball_track.current_position}")
+            else:
+                self.logger.debug("[FrameProcessor] No ball detected")
+            
+            if analytics_data['possession']:
+                self.logger.debug(f"[FrameProcessor] Team possession: {analytics_data['possession'].team_id}")
+            else:
+            self.logger.debug("[FrameProcessor] No possession info")
+
             # Step 8: Basketball-aware frame annotation
             annotated_frame = frame
             if self.frame_annotator:
