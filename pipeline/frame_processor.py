@@ -170,7 +170,11 @@ class FrameProcessor:
                         context={}
                     )
                     possession_info.play = play_result
-                    
+            
+            print('step5 possession_info', possession_info)
+            print('step 5 analytics_data', analytics_data)
+
+
             # Step 6: Basketball event detection
             if self.event_detector and analytics_data['possession']:
                 if hasattr(self.event_detector, 'detect_basketball_events'):
@@ -190,6 +194,8 @@ class FrameProcessor:
                 if events:
                     self.basketball_stats['basketball_events'] += len(events)
                     
+            print(f"[FrameProcessor] Events detected: {self.basketball_stats}")
+
             # Step 7: Basketball pose estimation and action detection
             if self.pose_estimator and analytics_data['tracks']:
                 crops = self._extract_basketball_crops(frame, analytics_data['tracks'])
@@ -219,21 +225,28 @@ class FrameProcessor:
             # ✅ Debug info after Step 7 (pose + tracking + ball + possession)
             if 'poses' in analytics_data and analytics_data['poses'] is not None:
                 self.logger.debug(f"[FrameProcessor] Pose count: {len(analytics_data['poses'])}")
+                print(f"[FrameProcessor] Pose count: {len(analytics_data['poses'])}")
             else:
                 self.logger.debug("[FrameProcessor] No poses detected")
+                print("[FrameProcessor] No poses detected")
             
             self.logger.debug(f"[FrameProcessor] Track count: {len(analytics_data['tracks'])}")
+            print(f"[FrameProcessor] Track count: {len(analytics_data['tracks'])}")
             
             ball_track = self._get_basketball_ball_track(detections_by_class.get('ball', []))
             if ball_track:
                 self.logger.debug(f"[FrameProcessor] Ball position: {ball_track.current_position}")
+                print(f"[FrameProcessor] Ball position: {ball_track.current_position}")
             else:
                 self.logger.debug("[FrameProcessor] No ball detected")
+                print("[FrameProcessor] No ball detected")
             
             if analytics_data['possession']:
                 self.logger.debug(f"[FrameProcessor] Team possession: {analytics_data['possession'].team_id}")
+                print(f"[FrameProcessor] Team possession: {analytics_data['possession'].team_id}")
             else:
-            self.logger.debug("[FrameProcessor] No possession info")
+                self.logger.debug("[FrameProcessor] No possession info")
+                print("[FrameProcessor] No possession info")
 
             # Step 8: Basketball-aware frame annotation
             annotated_frame = frame
