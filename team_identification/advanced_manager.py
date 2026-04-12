@@ -80,15 +80,15 @@ class AdvancedTeamClassificationManager:
         self.retraining_count = 0
         self.min_confidence_for_retrain = 0.6
 
-        print("🎯 AdvancedTeamClassificationManager initialized with existing modules")
-        print("🏀 Enhanced with 5v5 brightness-based team balancing")
+        logging.debug("🎯 AdvancedTeamClassificationManager initialized with existing modules")
+        logging.debug("🏀 Enhanced with 5v5 brightness-based team balancing")
 
     def log_memory_usage(self, step_name: str):
         """Log current memory usage"""
         if self.enable_memory_logging:
             process = psutil.Process()
             mem_info = process.memory_info()
-            print(f"💾 {step_name}: Memory usage: {mem_info.rss / 1024 / 1024:.1f} MB")
+            logging.debug(f"💾 {step_name}: Memory usage: {mem_info.rss / 1024 / 1024:.1f} MB")
 
     def cleanup_memory(self):
         """Enhanced memory cleanup with more aggressive optimization"""
@@ -109,7 +109,7 @@ class AdvancedTeamClassificationManager:
             self.crop_manager.crops = self.crop_manager.crops[-keep_count:]
             self.crop_manager.crop_metadata = self.crop_manager.crop_metadata[-keep_count:]
             
-            print(f"🧹 Aggressive crop cleanup: {current_count} -> {len(self.crop_manager.crops)} crops")
+            logging.debug(f"🧹 Aggressive crop cleanup: {current_count} -> {len(self.crop_manager.crops)} crops")
         
         # Clear temporary variables
         self.temp_crops.clear()
@@ -146,7 +146,7 @@ class AdvancedTeamClassificationManager:
         if len(crops) == 0:
             return
 
-        print(f"🎯 AdvancedTeamClassificationManager: Training with {len(crops)} crops")
+        logging.debug(f"🎯 AdvancedTeamClassificationManager: Training with {len(crops)} crops")
 
         # Use the existing unified classifier's fit method
         self.unified_classifier.fit(crops)
@@ -154,9 +154,9 @@ class AdvancedTeamClassificationManager:
         # Update our initialization status based on unified classifier
         if self.unified_classifier.is_initialized():
             self.teams_initialized = True
-            print("✅ AdvancedTeamClassificationManager: Training complete, teams initialized")
+            logging.debug("✅ AdvancedTeamClassificationManager: Training complete, teams initialized")
         else:
-            print("⚠️ AdvancedTeamClassificationManager: Training attempted but initialization incomplete")
+            logging.debug("⚠️ AdvancedTeamClassificationManager: Training attempted but initialization incomplete")
 
     def collect_crops_from_detections(self, frame: np.ndarray, detections, frame_idx: int) -> int:
         """Collect crops with memory optimization - reuse temp_crops list"""
@@ -206,20 +206,20 @@ class AdvancedTeamClassificationManager:
             return False
 
         try:
-            print(f"🚀 Initializing team classifier with {self.crop_manager.get_crop_count()} crops")
+            logging.debug(f"🚀 Initializing team classifier with {self.crop_manager.get_crop_count()} crops")
 
             # Get training crops from existing crop manager
             training_crops = self.crop_manager.get_training_crops(max_training_crops)
 
             if len(training_crops) < 20:
-                print(f"❌ Not enough valid crops: {len(training_crops)}")
+                logging.debug(f"❌ Not enough valid crops: {len(training_crops)}")
                 return False
 
             # Train the unified classifier (which integrates ML + color + basketball rules)
             self.unified_classifier.fit(training_crops)
             self.teams_initialized = True
 
-            print("✅ Team classifier initialization complete using unified classifier!")
+            logging.debug("✅ Team classifier initialization complete using unified classifier!")
 
             # Clear crops to free memory
             self.crop_manager.clear()
@@ -227,7 +227,7 @@ class AdvancedTeamClassificationManager:
             return True
 
         except Exception as e:
-            print(f"❌ Team classifier initialization failed: {e}")
+            logging.debug(f"❌ Team classifier initialization failed: {e}")
             return False
 
     def predict_teams(self, frame: np.ndarray, detections) -> Tuple[np.ndarray, float]:
@@ -241,7 +241,7 @@ class AdvancedTeamClassificationManager:
             return np.array([]), 1.0
 
         try:
-            print(f"🏀 Predicting teams for {len(detections)} players using unified classifier...")
+            logging.debug(f"🏀 Predicting teams for {len(detections)} players using unified classifier...")
 
             # Create dummy tracks for compatibility with existing classifier
             dummy_tracks = []
@@ -273,7 +273,7 @@ class AdvancedTeamClassificationManager:
             else:
                 confidence = 0.3  # Low confidence for single team
 
-            print(f"✅ Team predictions complete - T0: {team_0_count}, T1: {team_1_count}")
+            logging.debug(f"✅ Team predictions complete - T0: {team_0_count}, T1: {team_1_count}")
 
             return balanced_predictions, confidence
 
@@ -323,7 +323,7 @@ class AdvancedTeamClassificationManager:
             if (self.initialization_frames >= self.min_initialization_frames or
                 (frame_idx % 50 == 0 and self.crop_manager.get_crop_count() >= 25)):
                 if self.initialize_team_classifier():
-                    print(f"🎉 Team classifier initialized at frame {frame_idx}")
+                    logging.debug(f"🎉 Team classifier initialized at frame {frame_idx}")
 
         # Continue collecting crops for potential retraining (much less frequently)
         else:
@@ -338,7 +338,7 @@ class AdvancedTeamClassificationManager:
             if should_extract_features:
                 # Check if we should retrain (less frequently)
                 if frame_idx % 500 == 0 and self.should_retrain(frame_idx):
-                    print(f"🔄 Retraining classifier at frame {frame_idx}")
+                    logging.debug(f"🔄 Retraining classifier at frame {frame_idx}")
                     self.last_retrain_frame = frame_idx
                     self.retraining_count += 1
 

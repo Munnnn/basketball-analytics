@@ -65,6 +65,23 @@ TEAM_COLORS = {
 
 DEFAULT_COLORS = [(128, 128, 128), (192, 192, 192), (96, 96, 96)]
 
+# Jersey extraction
+JERSEY_REGION_RATIO = 0.6  # Upper 60% of player bbox for jersey area
+
 # Memory optimization
 MEMORY_CLEANUP_INTERVAL = 50
 MAX_FRAME_HISTORY = 100
+
+
+def scale_threshold(base_value: float, frame_width: int, reference_width: int = 1280) -> float:
+    """Scale a pixel-based threshold relative to a reference resolution.
+
+    Args:
+        base_value: Threshold calibrated at reference_width.
+        frame_width: Actual frame width in pixels.
+        reference_width: The width the base_value was calibrated for.
+
+    Returns:
+        Scaled threshold.
+    """
+    return base_value * (frame_width / reference_width)

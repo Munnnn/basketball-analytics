@@ -22,21 +22,12 @@ from video_io import VideoReader, VideoWriter, StreamingWriter
 from utils import MemoryMonitor, cleanup_resources
 from pipeline.frame_processor import FrameProcessor
 from pipeline.batch_optimizer import BatchOptimizer
-from team_identification import AdvancedTeamClassificationManager
 from analytics.possession import EnhancedPossessionTracker, PossessionContext
-from tracking import EnhancedTracker
-
-# Basketball-specific constants from original code
-PLAYER_ID = 5
-REF_ID = 6
-BALL_ID = 1
-BACKBOARD_ID = 0
-HOOP_ID = 3
 
 
 @dataclass
 class ProcessorConfig:
-    """Configuration for video processor - SYNCHRONIZED"""
+    """Configuration for the video processing pipeline"""
     # Model paths
     yolo_model_path: str
     sam_checkpoint_path: Optional[str] = None
@@ -84,8 +75,7 @@ class ProcessorConfig:
 
     # Performance
     use_gpu: bool = True
-    memory_optimization: bool = True
-    adaptive_batching: bool = True  # NEW: Use adaptive batch optimization
+    adaptive_batching: bool = True
 
     # Memory optimization
     memory_optimization: bool = True
@@ -162,13 +152,6 @@ class VideoProcessor:
             self.possession_tracker = None
 
         # Unified team classification with basketball intelligence
-        #self.team_classifier = UnifiedTeamClassifier(
-        #    use_ml=self.config.use_ml_classification,
-        #    use_color_fallback=self.config.use_color_fallback,
-        #    enforce_basketball_rules=self.config.enforce_basketball_rules,
-        #    basketball_5v5_balancing=self.config.basketball_5v5_balancing,
-        #    device=device
-        #)
         self.team_classifier = UnifiedTeamClassifier(
             use_ml=self.config.use_ml_classification,
             use_color_fallback=self.config.use_color_fallback,
@@ -177,42 +160,25 @@ class VideoProcessor:
         )
 
         if self.config.enable_play_classification:
-            #self.play_classifier = PlayClassifier(
-            #    basketball_play_types=True,
-            #    context_aware=self.config.enable_context_tracking
-            #)
             self.play_classifier = PlayClassifier()
         else:
             self.play_classifier = None
 
         if self.config.enable_event_detection:
-            #self.event_detector = EventDetector(basketball_events=True)
             self.event_detector = EventDetector()
         else:
             self.event_detector = None
 
         if self.config.enable_pose_estimation:
-            #self.pose_estimator = PoseEstimator(basketball_actions=True)
             self.pose_estimator = PoseEstimator()
-            #self.action_detector = ActionDetector(
-            #    detect_screens=True, detect_cuts=True
-            #)
             self.action_detector = ActionDetector()
         else:
             self.pose_estimator = None
             self.action_detector = None
 
-        # Timeline generator with basketball context
-        #self.timeline_generator = TimelineGenerator(basketball_timeline=True)
         self.timeline_generator = TimelineGenerator()
 
-        # Basketball-aware visualization
         if self.config.enable_visualization:
-            #self.frame_annotator = FrameAnnotator(
-            #    use_ellipse=self.config.use_ellipse_annotation,
-            #    team_aware_colors=self.config.team_aware_colors,
-            #    basketball_overlays=True
-            #)
             self.frame_annotator = FrameAnnotator(
                 use_ellipse=self.config.use_ellipse_annotation
             )
@@ -283,19 +249,6 @@ class VideoProcessor:
                 height=video_info['height'],
                 basketball_codec=True
             )
-            #video_writer = VideoWriter(
-            #    self.config.output_video_path,
-            #    fps=video_info['fps'],
-            #    width=video_info['width'],
-            #    height=video_info['height'],
-            #    basketball_codec=True
-            #)
-            #video_writer = VideoWriter(
-            #    self.config.output_video_path,
-            #    fps=video_info['fps'],
-            #    width=video_info['width'],
-            #    height=video_info['height']
-            #)
 
         # Initialize streaming writer
         streaming_writer = None
@@ -363,9 +316,8 @@ class VideoProcessor:
             'batch_optimizer_stats': {}
         }
 
-        # Read all frames first for adaptive batching
+        # Read and sample frames
         frame_generator = video_reader.read_frames(start_frame, end_frame)
-        #frame_data = list(frame_generator)  # [(frame, frame_idx), ...]
         frame_data = [
             (frame, frame_idx)
             for i, (frame, frame_idx) in enumerate(frame_generator)

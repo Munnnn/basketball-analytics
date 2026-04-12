@@ -96,6 +96,8 @@ class EnhancedTracker(Tracker):
         # Memory optimizer
         self.memory_optimizer = MemoryOptimizer()
 
+        self.logger = logging.getLogger(__name__)
+
     def update_basketball(self, detections: List[Detection], frame: Optional[np.ndarray] = None, frame_idx: int = 0) -> List[Track]:
         """
         CRITICAL FIX: Basketball-specific update method that works with detections
@@ -124,7 +126,7 @@ class EnhancedTracker(Tracker):
             )
             
             if len(team_assignments) > 0:
-                print(f"🎯 Team assignments: {len(team_assignments)} players classified, confidence: {team_confidence:.2f}")
+                self.logger.debug(f"Team assignments: {len(team_assignments)} players, confidence: {team_confidence:.2f}")
         
         # Extract appearance features if enabled
         if self.use_appearance and frame is not None:
@@ -241,59 +243,9 @@ class EnhancedTracker(Tracker):
         return track
     
     def update(self, detections: List[Detection], frame: Optional[np.ndarray] = None) -> List[Track]:
-        """Update tracks with new detections"""
+        """Update tracks with new detections (delegates to update_basketball)."""
         self.frame_id += 1
-        
-        # Filter low confidence detections
-        detections = [d for d in detections if d.confidence >= self.track_activation_threshold]
-        
-        if not detections:
-            self._age_tracks()
-            return list(self.active_tracks.values())
-            
-        # Extract appearance features if enabled
-        if self.use_appearance and frame is not None:
-            features = self.appearance_extractor.extract_batch(frame, detections)
-        else:
-            features = None
-            
-        # Associate detections with existing tracks
-        matches, unmatched_detections, unmatched_tracks = self.associator.associate(
-            detections, 
-            list(self.active_tracks.values()) + list(self.lost_tracks.values()),
-            features
-        )
-        
-        # Update matched tracks
-        for track_id, det_idx in matches:
-            track = self._get_track(track_id)
-            if track:
-                self._update_track(track, detections[det_idx])
-                
-                # Move from lost to active if needed
-                if track_id in self.lost_tracks:
-                    self.active_tracks[track_id] = self.lost_tracks.pop(track_id)
-                    
-        # Handle unmatched tracks
-        for track_id in unmatched_tracks:
-            if track_id in self.active_tracks:
-                track = self.active_tracks[track_id]
-                track.state = TrackState.LOST
-                self.lost_tracks[track_id] = self.active_tracks.pop(track_id)
-                
-        # Create new tracks for unmatched detections
-        for det_idx in unmatched_detections:
-            if len(self.active_tracks) + len(self.lost_tracks) < self.max_tracks:
-                self._create_track(detections[det_idx])
-                
-        # Clean up old lost tracks
-        self._cleanup_lost_tracks()
-        
-        # Periodic memory cleanup
-        if self.frame_id % 50 == 0:
-            self.memory_optimizer.cleanup()
-            
-        return self.get_active_tracks()
+        return self.update_basketball(detections, frame, self.frame_id)
         
     def get_active_tracks(self) -> List[Track]:
         """Get currently active tracks"""
@@ -321,25 +273,6 @@ class EnhancedTracker(Tracker):
         elif track_id in self.lost_tracks:
             return self.lost_tracks[track_id]
         return None
-        
-    def _create_track(self, detection: Detection):
-        """Create new track from detection"""
-        track = Track(
-            id=self.next_track_id,
-            detections=[detection],
-            state=TrackState.TENTATIVE,
-            confidence=detection.confidence,
-            start_frame=self.frame_id,
-            last_seen_frame=self.frame_id
-        )
-        
-        self.active_tracks[self.next_track_id] = track
-        
-        # Initialize Kalman filter if enabled
-        if self.use_kalman:
-            self.kalman_filters[self.next_track_id] = KalmanTracker(detection.bbox)
-            
-        self.next_track_id += 1
         
     def _update_track(self, track: Track, detection: Detection):
         """Update existing track with new detection"""

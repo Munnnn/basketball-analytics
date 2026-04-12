@@ -108,24 +108,9 @@ class BasketballTeamBalancer:
         return predictions
         
     def _calculate_brightness(self, crop: np.ndarray) -> float:
-        """Calculate brightness of crop"""
-        if crop is None or crop.size == 0:
-            return 128.0
-            
-        # Focus on jersey area
-        h, w = crop.shape[:2]
-        jersey_area = crop[h//6:h//2, w//4:3*w//4]
-        
-        if jersey_area.size == 0:
-            jersey_area = crop
-            
-        # Convert to grayscale
-        if len(jersey_area.shape) == 3:
-            gray = cv2.cvtColor(jersey_area, cv2.COLOR_BGR2GRAY)
-        else:
-            gray = jersey_area
-            
-        return float(np.mean(gray))
+        """Calculate brightness of crop."""
+        from utils.image_utils import calculate_jersey_brightness
+        return calculate_jersey_brightness(crop)
         
     def _record_balance(self, original: np.ndarray, balanced: np.ndarray):
         """Record balancing action for analysis"""

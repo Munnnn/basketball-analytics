@@ -61,22 +61,24 @@ def create_api():
             # Process video
             processor = VideoProcessor(config)
             result = processor.process_video(filepath)
-            
-            # Clean up
-            os.remove(filepath)
-            cleanup_resources()
-            
+
             # Return results
             return jsonify({
                 'success': True,
                 'data': result.to_dict()
             })
-            
+
         except Exception as e:
             return jsonify({
                 'success': False,
                 'error': str(e)
             }), 500
+
+        finally:
+            # Clean up uploaded file and resources
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            cleanup_resources()
     
     @app.route('/models', methods=['GET'])
     def list_models():

@@ -13,7 +13,9 @@ from .interfaces import (
 )
 from .constants import (
     PLAYER_ID, REF_ID, BALL_ID, BACKBOARD_ID, HOOP_ID,
-    COURT_WIDTH, COURT_HEIGHT, DEFAULT_FPS
+    GAMECLOCK_ID, PERIOD_ID, SCOREBOARD_ID, TEAM_POINTS_ID,
+    COURT_WIDTH, COURT_HEIGHT, DEFAULT_FPS,
+    JERSEY_REGION_RATIO, scale_threshold
 )
 
 __all__ = [

@@ -7,8 +7,8 @@ import time
 from typing import Dict, List, Optional, Tuple
 import logging
 
-from core import Detection, Track, PossessionInfo, PlayEvent, BasketballAction
-from core.constants import PLAYER_ID, BALL_ID, REF_ID, HOOP_ID, BACKBOARD_ID
+from core import Detection, Track, TrackState, PossessionInfo, PlayEvent, BasketballAction
+from core.constants import PLAYER_ID, BALL_ID, REF_ID, HOOP_ID, BACKBOARD_ID, JERSEY_REGION_RATIO
 from team_identification import AdvancedTeamClassificationManager
 from analytics.possession import EnhancedPossessionTracker
 
@@ -95,16 +95,15 @@ class FrameProcessor:
             if not detections:
                 return frame, analytics_data
             
-            # Step 2: Generate basketball-optimized masks
-            if detections:
-                if hasattr(self.mask_generator, 'generate_basketball_masks'):
-                    masks = self.mask_generator.generate_basketball_masks(frame, detections)
-                else:
-                    masks = self.mask_generator.generate_masks(frame, detections)
-                    
-                for det, mask in zip(detections, masks):
-                    det.mask = mask
-                    
+            # Step 2: Generate masks
+            if hasattr(self.mask_generator, 'generate_basketball_masks'):
+                masks = self.mask_generator.generate_basketball_masks(frame, detections)
+            else:
+                masks = self.mask_generator.generate_masks(frame, detections)
+
+            for det, mask in zip(detections, masks):
+                det.mask = mask
+
             # Step 3: Separate basketball detections
             detections_by_class = self._separate_basketball_detections(detections)
             analytics_data['detections'] = detections_by_class
@@ -171,9 +170,6 @@ class FrameProcessor:
                     )
                     possession_info.play = play_result
             
-            print('step5 possession_info', possession_info)
-            print('step 5 analytics_data', analytics_data)
-
 
             # Step 6: Basketball event detection
             if self.event_detector and analytics_data['possession']:
@@ -194,7 +190,6 @@ class FrameProcessor:
                 if events:
                     self.basketball_stats['basketball_events'] += len(events)
                     
-            print(f"[FrameProcessor] Events detected: {self.basketball_stats}")
 
             # Step 7: Basketball pose estimation and action detection
             if self.pose_estimator and analytics_data['tracks']:
@@ -222,32 +217,6 @@ class FrameProcessor:
                     if basketball_actions:
                         self.basketball_stats['pose_actions_detected'] += len(basketball_actions)
                       
-            # ✅ Debug info after Step 7 (pose + tracking + ball + possession)
-            if 'poses' in analytics_data and analytics_data['poses'] is not None:
-                self.logger.debug(f"[FrameProcessor] Pose count: {len(analytics_data['poses'])}")
-                print(f"[FrameProcessor] Pose count: {len(analytics_data['poses'])}")
-            else:
-                self.logger.debug("[FrameProcessor] No poses detected")
-                print("[FrameProcessor] No poses detected")
-            
-            self.logger.debug(f"[FrameProcessor] Track count: {len(analytics_data['tracks'])}")
-            print(f"[FrameProcessor] Track count: {len(analytics_data['tracks'])}")
-            
-            ball_track = self._get_basketball_ball_track(detections_by_class.get('ball', []))
-            if ball_track:
-                self.logger.debug(f"[FrameProcessor] Ball position: {ball_track.current_position}")
-                print(f"[FrameProcessor] Ball position: {ball_track.current_position}")
-            else:
-                self.logger.debug("[FrameProcessor] No ball detected")
-                print("[FrameProcessor] No ball detected")
-            
-            if analytics_data['possession']:
-                self.logger.debug(f"[FrameProcessor] Team possession: {analytics_data['possession'].team_id}")
-                print(f"[FrameProcessor] Team possession: {analytics_data['possession'].team_id}")
-            else:
-                self.logger.debug("[FrameProcessor] No possession info")
-                print("[FrameProcessor] No possession info")
-
             # Step 8: Basketball-aware frame annotation
             annotated_frame = frame
             if self.frame_annotator:
@@ -334,40 +303,12 @@ class FrameProcessor:
         return Track(
             id=-1,  # Special ID for ball
             detections=[best_ball],
-            state='tracked',
+            state=TrackState.TRACKED,
             confidence=best_ball.confidence
         )
         
     def _extract_basketball_crops(self, frame: np.ndarray, tracks: List[Track]) -> List[np.ndarray]:
-        """Extract basketball-optimized crops (jersey region focus)"""
-        crops = []
-        
-        for track in tracks:
-            if track.current_bbox is not None:
-                x1, y1, x2, y2 = track.current_bbox.astype(int)
-                x1, y1 = max(0, x1), max(0, y1)
-                x2, y2 = min(frame.shape[1], x2), min(frame.shape[0], y2)
-                
-                if x2 > x1 and y2 > y1:
-                    crop = frame[y1:y2, x1:x2]
-                    
-                    # Extract jersey region (upper 60% for better team classification)
-                    h = crop.shape[0]
-                    jersey_height = int(h * 0.6)
-                    if jersey_height > 0:
-                        jersey_crop = crop[:jersey_height, :]
-                        crops.append(jersey_crop)
-                    else:
-                        crops.append(crop)
-                else:
-                    crops.append(np.zeros((64, 64, 3), dtype=np.uint8))
-            else:
-                crops.append(np.zeros((64, 64, 3), dtype=np.uint8))
-                
-        return crops
-
-    def _extract_basketball_crops(self, frame: np.ndarray, tracks: List[Track]) -> List[np.ndarray]:
-        """Extract jersey crops using pose keypoints if available"""
+        """Extract jersey crops using pose keypoints if available, falling back to bbox"""
         crops = []
     
         for track in tracks:
@@ -387,7 +328,7 @@ class FrameProcessor:
                 if x2 > x1 and y2 > y1:
                     fallback_crop = frame[y1:y2, x1:x2]
                     h = fallback_crop.shape[0]
-                    jersey_crop = fallback_crop[:int(h * 0.6), :] if h > 0 else fallback_crop
+                    jersey_crop = fallback_crop[:int(h * JERSEY_REGION_RATIO), :] if h > 0 else fallback_crop
                     crops.append(jersey_crop)
                     continue
     

@@ -108,23 +108,16 @@ class VideoAnalysisCallbacks:
             analytics_dict['possession_segments'] = self.last_result.get_possession_segments()
             analytics_json = json.dumps(analytics_dict, indent=2)
 
-            analytics_json = json.dumps(
-                self.last_result.to_dict(),
-                indent=2
-            )
-
             timeline_html = self._generate_timeline_html(self.last_result)
 
             status = self._generate_analysis_summary(self.last_result, file_size_mb)
 
             # Export CSV of possession segments if available
-            possession_csv_path = self._export_possession_segments()
-            if possession_csv_path:
-                print(f"📤 Possession segments exported to: {possession_csv_path}")
+            self._export_possession_segments()
 
             progress(1.0, desc="Complete!")
 
-            return output_video, analytics_json, timeline_html, status, possession_csv_path
+            return output_video, analytics_json, timeline_html, status
 
         except Exception as e:
             import traceback
@@ -204,7 +197,7 @@ class VideoAnalysisCallbacks:
                 return f"❌ Path is not a file: {path}"
             
             # Check if it's a video file by extension
-            video_extensions = {'.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.webm', '.m4v', '.mp3'}
+            video_extensions = {'.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.webm', '.m4v'}
             if path_obj.suffix.lower() not in video_extensions:
                 return f"⚠️ Warning: File extension '{path_obj.suffix}' may not be a video format"
             
@@ -274,59 +267,6 @@ class VideoAnalysisCallbacks:
             df.to_csv(output_path, index=False)
 
         return output_path
-
-#    def _generate_timeline_html(self, result) -> str:
-#        """Generate HTML timeline visualization"""
-#        # Create a more detailed timeline
-#        events_html = ""
-#        for i, event in enumerate(result.events[:10]):  # Show first 10 events
-#            events_html += f"""
-#            <div class="timeline-event">
-#                <span class="event-time">Frame {event.frame}</span>
-#                <span class="event-type">{event.type}</span>
-#                <span class="event-description">{event.description}</span>
-#            </div>
-#            """
-#        
-#        html = f"""
-#        <div class="timeline-container" style="font-family: Arial, sans-serif;">
-#            <h3>🏀 Game Timeline</h3>
-#            <div class="stats" style="background: #f0f0f0; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-#                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
-#                    <div><strong>Total Possessions:</strong> {len(result.possessions)}</div>
-#                    <div><strong>Total Events:</strong> {len(result.events)}</div>
-#                    <div><strong>Players Tracked:</strong> {len(result.tracks)}</div>
-#                    <div><strong>Frames Processed:</strong> {result.processed_frames}</div>
-#                </div>
-#            </div>
-#            <div class="timeline" style="max-height: 400px; overflow-y: auto;">
-#                <h4>Recent Events:</h4>
-#                {events_html}
-#            </div>
-#        </div>
-#        <style>
-#        .timeline-event {{
-#            padding: 8px;
-#            margin: 5px 0;
-#            border-left: 3px solid #007bff;
-#            background: #f8f9fa;
-#            border-radius: 4px;
-#        }}
-#        .event-time {{
-#            font-weight: bold;
-#            color: #007bff;
-#            margin-right: 10px;
-#        }}
-#        .event-type {{
-#            background: #e9ecef;
-#            padding: 2px 6px;
-#            border-radius: 3px;
-#            font-size: 0.8em;
-#            margin-right: 10px;
-#        }}
-#        </style>
-#        """
-#        return html
 
     def _generate_timeline_html(self, result) -> str:
         """Generate HTML timeline visualization with possession segments"""

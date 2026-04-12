@@ -6,6 +6,8 @@ import numpy as np
 from typing import Dict, List, Tuple, Optional
 import colorsys
 
+from core.constants import BALL_ID, HOOP_ID, BACKBOARD_ID, REF_ID
+
 
 class ColorPalette:
     """Manage color palettes for visualization"""
@@ -95,13 +97,13 @@ class TeamColorManager:
                           team_id: Optional[int] = None) -> Tuple[int, int, int]:
         """Get color for detection"""
         # Special colors for specific classes
-        if detection.class_id == 1:  # Ball
+        if detection.class_id == BALL_ID:
             return self.special_colors['ball']
-        elif detection.class_id == 3:  # Hoop
+        elif detection.class_id == HOOP_ID:
             return self.special_colors['hoop']
-        elif detection.class_id == 0:  # Backboard
+        elif detection.class_id == BACKBOARD_ID:
             return self.special_colors['backboard']
-        elif detection.class_id == 6:  # Referee
+        elif detection.class_id == REF_ID:
             palette = self.team_palettes['referee']
             return palette.get_color(0)
             

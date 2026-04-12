@@ -102,13 +102,6 @@ class ShotDetector(EventDetector):
             events.append(event)
             self.last_event_frame = frame_idx
 
-        #debug
-        print(f"[SHOT DEBUG] Frame {frame_idx}")
-        print(f"  - Ball center: {ball_center}, Hoop center: {hoop_center}")
-        print(f"  - Distance: {distance:.2f} (Threshold: {self.distance_threshold})")
-        print(f"  - Ball above hoop? {ball_above_hoop}")
-        print(f"  - Possession: team_id={possession_info.team_id}, player_id={possession_info.player_id}")
-
         return events
 
     def _classify_shot_type(self, distance: float) -> str:
@@ -238,7 +231,6 @@ class BasketballEventDetector(UnifiedEventDetector):
         """Initialize basketball-enhanced event detector"""
         super().__init__()
         self.basketball_enhanced = True
-        print("🏀 Basketball-enhanced event detector initialized")
 
     def detect_events(self,
                      detections: Dict[str, List[Detection]],

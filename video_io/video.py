@@ -242,26 +242,5 @@ class VideoReader:
         self.close()
 
 
-class StreamingWriter:
-    """Streaming writer for basketball analytics"""
 
-    def __init__(self, output_path: str):
-        """Initialize streaming writer"""
-        self.output_path = output_path
-        self.data = []
-
-    def write(self, data: dict):
-        """Write data to stream"""
-        self.data.append(data)
-
-    def close(self):
-        """Close and save streaming data"""
-        import pickle
-        with open(self.output_path, 'wb') as f:
-            pickle.dump(self.data, f)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
+# StreamingWriter is imported from video_io.streaming (canonical implementation)

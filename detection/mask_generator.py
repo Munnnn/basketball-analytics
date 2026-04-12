@@ -153,12 +153,12 @@ class EdgeTAMMaskGenerator(MaskGeneratorInterface):
                 self.predictor = SAM2ImagePredictor(
                     build_sam2(model_cfg, checkpoint_path)
                 )
-                print("✅ EdgeTAM mask generator initialized with basketball optimizations")
+                logging.info("EdgeTAM mask generator initialized")
             except Exception as e:
                 logging.warning(f"EdgeTAM initialization failed: {e}")
                 self.predictor = None
         else:
-            print("⚠️ EdgeTAM not available, using bbox fallback")
+            logging.info("EdgeTAM not available, using bbox fallback")
 
     def generate_masks(self, frame: np.ndarray, detections: List[Detection]) -> List[Optional[np.ndarray]]:
         """Generate masks for detections using EdgeTAM with basketball optimizations"""

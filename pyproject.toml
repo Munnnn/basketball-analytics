@@ -1,0 +1,7 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+# The root __init__.py uses relative imports (it's a package init for the basketball_analytics
+# package). This prevents pytest from importing it directly. Use the run_tests.py script
+# or run: .venv/bin/python -m pytest tests/ --rootdir=tests
+norecursedirs = ["core", "pipeline", "detection", "tracking", "analytics", "visualization", "team_identification", "video_io", "utils", "config", "apps", ".venv", ".git", ".claude", ".claude-flow"]

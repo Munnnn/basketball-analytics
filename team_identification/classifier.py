@@ -17,7 +17,7 @@ try:
     SIGLIP_MODEL_PATH = "google/siglip-base-patch16-224"  # Default model path
     SIGLIP_AVAILABLE = True
 except ImportError as e:
-    print(f"Warning: SiglipVisionModel not available: {e}")
+    logging.getLogger(__name__).info(f"SiglipVisionModel not available: {e}")
     SiglipVisionModel = None
     AutoProcessor = None
     SIGLIP_MODEL_PATH = None
@@ -27,7 +27,7 @@ try:
     import umap
     UMAP_AVAILABLE = True
 except ImportError as e:
-    print(f"Warning: UMAP not available: {e}")
+    logging.getLogger(__name__).info(f"UMAP not available: {e}")
     umap = None
     UMAP_AVAILABLE = False
 
@@ -35,7 +35,7 @@ try:
     from sklearn.cluster import KMeans
     SKLEARN_AVAILABLE = True
 except ImportError as e:
-    print(f"Warning: scikit-learn not available: {e}")
+    logging.getLogger(__name__).info(f"scikit-learn not available: {e}")
     KMeans = None
     SKLEARN_AVAILABLE = False
 
@@ -43,7 +43,7 @@ try:
     import supervision as sv
     SUPERVISION_AVAILABLE = True
 except ImportError as e:
-    print(f"Warning: supervision not available: {e}")
+    logging.getLogger(__name__).info(f"supervision not available: {e}")
     sv = None
     SUPERVISION_AVAILABLE = False
 
@@ -111,19 +111,19 @@ class UnifiedTeamClassifier(TeamClassifierInterface):
                 self.brightness_threshold_cache = None
                 self.team_brightness_history = deque(maxlen=30)
  
-                print("✅ ML TeamClassifier initialized successfully")
-                print("🏀 BASKETBALL: 5v5 balancing enabled")
+                logging.getLogger(__name__).info("ML TeamClassifier initialized successfully")
             except Exception as e:
-                print(f"❌ Failed to initialize ML classifier: {e}")
+                logging.getLogger(__name__).warning(f"Failed to initialize ML classifier: {e}")
                 self.features_model = None
         else:
             self.features_model = None
+            _log = logging.getLogger(__name__)
             if not SIGLIP_AVAILABLE:
-                print("❌ SiglipVisionModel not available - install transformers")
+                _log.info("SiglipVisionModel not available - install transformers")
             if not UMAP_AVAILABLE:
-                print("❌ UMAP not available - install umap-learn")
+                _log.info("UMAP not available - install umap-learn")
             if not SKLEARN_AVAILABLE:
-                print("❌ scikit-learn not available - install scikit-learn")
+                _log.info("scikit-learn not available - install scikit-learn")
  
         if use_color_fallback:
             self.color_classifier = ColorBasedClassifier()
@@ -150,13 +150,13 @@ class UnifiedTeamClassifier(TeamClassifierInterface):
         # Limit crops to prevent memory issues
         max_crops = min(len(crops), 500)  # Hard limit
         if len(crops) > max_crops:
-            print(f"🔍 WARNING: Limiting crops from {len(crops)} to {max_crops} to prevent memory issues")
+            logging.getLogger(__name__).warning(f"Limiting crops from {len(crops)} to {max_crops} to prevent memory issues")
             crops = crops[:max_crops]
  
-        print(f"🔍 DEBUG: Extracting features from {len(crops)} crops")
+        logging.getLogger(__name__).debug(f"Extracting features from {len(crops)} crops")
  
         if self.features_model is None or not SUPERVISION_AVAILABLE:
-            print("❌ DEBUG: ML components not available")
+            logging.getLogger(__name__).debug("ML components not available")
             return np.array([]).reshape(0, -1)
  
         # Convert crops to PIL format with memory management
@@ -168,7 +168,7 @@ class UnifiedTeamClassifier(TeamClassifierInterface):
                 pil_crop = sv.cv2_to_pillow(crop)
                 crops_pil.append(pil_crop)
         except Exception as e:
-            print(f"❌ DEBUG: Failed to convert crops to PIL: {e}")
+            logging.getLogger(__name__).warning(f"Failed to convert crops to PIL: {e}")
             return np.array([]).reshape(0, -1)
  
         # Use smaller batch size to prevent OOM
@@ -202,7 +202,7 @@ class UnifiedTeamClassifier(TeamClassifierInterface):
                     if torch.cuda.is_available():
                         memory_used = torch.cuda.memory_allocated() / 1024 / 1024  # MB
                         if memory_used > 2000:  # 2GB limit
-                            print(f"⚠️ GPU memory limit reached ({memory_used:.1f}MB), stopping feature extraction")
+                            logging.getLogger(__name__).warning(f"GPU memory limit reached ({memory_used:.1f}MB), stopping feature extraction")
                             break
                         
                 except Exception as e:
@@ -220,7 +220,7 @@ class UnifiedTeamClassifier(TeamClassifierInterface):
         if data:
             try:
                 features = np.concatenate(data)
-                print(f"🔍 DEBUG: Feature extraction complete - shape: {features.shape}")
+                logging.getLogger(__name__).debug(f"Feature extraction complete - shape: {features.shape}")
                 
                 # Clear data list
                 del data
@@ -228,12 +228,12 @@ class UnifiedTeamClassifier(TeamClassifierInterface):
                 
                 return features
             except Exception as e:
-                print(f"❌ DEBUG: Failed to concatenate features: {e}")
+                logging.getLogger(__name__).warning(f"Failed to concatenate features: {e}")
                 del data
                 gc.collect()
                 return np.array([]).reshape(0, -1)
         else:
-            print("❌ DEBUG: Feature extraction failed - no valid features extracted")
+            logging.getLogger(__name__).debug("Feature extraction failed - no valid features extracted")
             return np.array([]).reshape(0, -1)
  
     def fit(self, crops: List[np.ndarray]) -> None:
@@ -257,15 +257,15 @@ class UnifiedTeamClassifier(TeamClassifierInterface):
                     if data.size == 0:
                         raise ValueError("Failed to extract features from crops")
  
-                    print(f"📊 DEBUG: Extracted features shape: {data.shape}")
+                    logging.debug(f"Extracted features shape: {data.shape}")
  
                     # UMAP dimensionality reduction
-                    print("🔄 DEBUG: Applying UMAP dimensionality reduction...")
+                    logging.debug("Applying UMAP dimensionality reduction")
                     projections = self.reducer.fit_transform(data)
-                    print(f"📊 DEBUG: UMAP projections shape: {projections.shape}")
+                    logging.debug(f"UMAP projections shape: {projections.shape}")
  
                     # KMeans clustering
-                    print("🎯 DEBUG: Training KMeans clustering...")
+                    logging.debug("Training KMeans clustering")
                     self.cluster_model.fit(projections)
  
                     self.initialized = True
@@ -362,12 +362,12 @@ class UnifiedTeamClassifier(TeamClassifierInterface):
         if len(crops) == 0:
             return np.array([])
  
-        print(f"🔮 DEBUG: Predicting teams for {len(crops)} crops")
+        logging.debug(f"Predicting teams for {len(crops)} crops")
  
         # Extract features
         data = self.extract_features(crops)
         if data.size == 0:
-            print("⚠️ DEBUG: No features extracted for prediction")
+            logging.debug("No features extracted for prediction")
             return np.array([])
  
         # Transform with UMAP
@@ -376,7 +376,7 @@ class UnifiedTeamClassifier(TeamClassifierInterface):
         # Predict with KMeans
         predictions = self.cluster_model.predict(projections)
  
-        print(f"🔮 DEBUG: Raw ML predictions: T0={np.sum(predictions == 0)}, T1={np.sum(predictions == 1)}")
+        logging.debug(f"Raw ML predictions: T0={np.sum(predictions == 0)}, T1={np.sum(predictions == 1)}")
  
         # BASKETBALL ENHANCEMENT: Apply brightness-based team balancing
         if self.enforce_basketball_rules:
@@ -394,16 +394,15 @@ class UnifiedTeamClassifier(TeamClassifierInterface):
         team_0_count = np.sum(predictions == 0)
         team_1_count = np.sum(predictions == 1)
  
-        print(f"   🏀 Team balance check: T0={team_0_count}, T1={team_1_count}")
+        logging.debug(f"Team balance check: T0={team_0_count}, T1={team_1_count}")
  
         # BASKETBALL: If teams are balanced (4-6 players each), keep ML predictions
         if 4 <= team_0_count <= 6 and 4 <= team_1_count <= 6:
-            print(f"   ✅ Teams balanced, keeping ML predictions")
             return predictions
  
         # BASKETBALL: If severely imbalanced, apply brightness correction
         if team_0_count < 3 or team_1_count < 3 or team_0_count > 7 or team_1_count > 7:
-            print(f"   🔧 Teams imbalanced ({team_0_count}v{team_1_count}), applying brightness correction...")
+            logging.debug(f"Teams imbalanced ({team_0_count}v{team_1_count}), applying brightness correction")
             return self._apply_brightness_correction(crops)
  
         return predictions
@@ -419,13 +418,13 @@ class UnifiedTeamClassifier(TeamClassifierInterface):
                 brightness = self.calculate_brightness(crop)
                 brightnesses.append(brightness)
                 valid_indices.append(i)
-                print(f"     Player {i}: brightness = {brightness:.1f}")
+                logging.debug(f"Player {i}: brightness = {brightness:.1f}")
             except Exception as e:
-                print(f"     Error calculating brightness for player {i}: {e}")
+                logging.warning(f"Error calculating brightness for player {i}: {e}")
                 continue
  
         if len(brightnesses) < 6:  # Need at least 6 players for meaningful split
-            print(f"   ⚠️ Not enough valid players ({len(brightnesses)}) for brightness correction")
+            logging.debug(f"Not enough valid players ({len(brightnesses)}) for brightness correction")
             # Return alternating assignment as fallback
             return np.array([i % 2 for i in range(len(crops))])
  
@@ -445,30 +444,14 @@ class UnifiedTeamClassifier(TeamClassifierInterface):
  
         final_team_0 = np.sum(new_team_assignments == 0)
         final_team_1 = np.sum(new_team_assignments == 1)
-        print(f"   ✅ Brightness correction applied: T0={final_team_0}, T1={final_team_1}")
+        logging.debug(f"Brightness correction applied: T0={final_team_0}, T1={final_team_1}")
  
         return new_team_assignments
  
     def calculate_brightness(self, crop: np.ndarray) -> float:
-        """BASKETBALL: Calculate brightness of jersey area for team balancing"""
-        if crop is None or crop.size == 0:
-            return 128.0
- 
-        # Extract jersey region (upper portion)
-        h, w = crop.shape[:2]
-        jersey_area = crop[:h//2, w//4:3*w//4] if h > 0 and w > 0 else crop
- 
-        if jersey_area.size == 0:
-            jersey_area = crop
- 
-        # Calculate brightness using luminance formula
-        if len(jersey_area.shape) == 3:
-            # BGR to grayscale
-            gray = cv2.cvtColor(jersey_area, cv2.COLOR_BGR2GRAY)
-        else:
-            gray = jersey_area
- 
-        return float(np.mean(gray))
+        """Calculate brightness of jersey area for team balancing."""
+        from utils.image_utils import calculate_jersey_brightness
+        return calculate_jersey_brightness(crop)
  
     def get_statistics(self) -> Dict[str, int]:
         """Get classification statistics"""

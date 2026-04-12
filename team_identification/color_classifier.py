@@ -69,19 +69,9 @@ class ColorBasedClassifier:
         return features
         
     def calculate_brightness(self, crop: np.ndarray) -> float:
-        """Calculate average brightness of jersey area"""
-        if crop is None or crop.size == 0:
-            return 128.0
-            
-        h, w = crop.shape[:2]
-        jersey_area = crop[h//6:h//2, w//4:3*w//4]
-        
-        if jersey_area.size == 0:
-            jersey_area = crop
-            
-        # Convert to grayscale
-        gray = cv2.cvtColor(jersey_area, cv2.COLOR_BGR2GRAY)
-        return float(np.mean(gray))
+        """Calculate average brightness of jersey area."""
+        from utils.image_utils import calculate_jersey_brightness
+        return calculate_jersey_brightness(crop)
         
     def fit(self, crops: List[np.ndarray]) -> None:
         """Train classifier on crops"""

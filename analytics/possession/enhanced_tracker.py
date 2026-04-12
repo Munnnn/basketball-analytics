@@ -7,6 +7,7 @@ import numpy as np
 from typing import Dict, List, Optional, Tuple
 from collections import deque
 import time
+import logging
 
 from .tracker import PossessionTracker
 from .context import PossessionContext
@@ -53,7 +54,7 @@ class EnhancedPossessionTracker(PossessionTracker):
         # Enhanced tracking parameters
         self.confidence_threshold = 0.5
         
-        print("✅ Enhanced possession tracker with context integration initialized")
+        logging.debug("✅ Enhanced possession tracker with context integration initialized")
     
     def update_possession_with_context(self, frame_data: Dict, frame_idx: int) -> Dict:
         """
@@ -83,7 +84,7 @@ class EnhancedPossessionTracker(PossessionTracker):
                 crops = self._extract_player_crops(frame_data.get('frame'), player_detections)
                 poses = self.pose_estimator.extract_poses(crops)
             except Exception as e:
-                print(f"Pose extraction failed: {e}")
+                logging.debug(f"Pose extraction failed: {e}")
                 poses = [None] * len(player_detections)
         
         # Enhanced possession detection with pose data
@@ -99,7 +100,7 @@ class EnhancedPossessionTracker(PossessionTracker):
         team_in_possession = possession_result['team_id']
         confidence = possession_result['confidence']
         
-        print(f"   🎯 Frame {frame_idx}: Player {player_in_possession} (Team {team_in_possession}) in possession (conf: {confidence:.2f})")
+        logging.debug(f"   🎯 Frame {frame_idx}: Player {player_in_possession} (Team {team_in_possession}) in possession (conf: {confidence:.2f})")
         
         # Enhanced possession change logic with context
         if self._should_change_possession_with_context(
@@ -109,7 +110,7 @@ class EnhancedPossessionTracker(PossessionTracker):
             self._start_new_possession_with_context(
                 player_in_possession, team_in_possession, frame_idx, frame_data, poses
             )
-            print(f"   ✨ NEW POSSESSION: Player {player_in_possession} (Team {team_in_possession})")
+            logging.debug(f"   ✨ NEW POSSESSION: Player {player_in_possession} (Team {team_in_possession})")
         else:
             self._update_current_possession_with_context(frame_data, frame_idx, poses)
         
@@ -379,7 +380,7 @@ class EnhancedPossessionTracker(PossessionTracker):
             return
         
         if self.current_possession['duration'] < self.min_possession_duration:
-            print(f"   ⚠️ Possession too short ({self.current_possession['duration']} < {self.min_possession_duration}), discarding")
+            logging.debug(f"   ⚠️ Possession too short ({self.current_possession['duration']} < {self.min_possession_duration}), discarding")
             self.current_possession = None
             return
         
@@ -406,7 +407,7 @@ class EnhancedPossessionTracker(PossessionTracker):
         
         # Add to history
         self.possession_history.append(self.current_possession.copy())
-        print(f"   ✅ Enhanced possession completed: Player {self.current_possession['player_id']} (Team {self.current_possession['team_id']}) - {self.current_possession['play_name']} ({self.current_possession['duration']} frames)")
+        logging.debug(f"   ✅ Enhanced possession completed: Player {self.current_possession['player_id']} (Team {self.current_possession['team_id']}) - {self.current_possession['play_name']} ({self.current_possession['duration']} frames)")
         
         self.current_possession = None
     
@@ -517,19 +518,6 @@ class EnhancedPossessionTracker(PossessionTracker):
         
         return False
 
-#    def get_possession_segments(self):
-#        """Return possession segments as list of dicts: start, end, player, team, duration"""
-#        return [
-#            {
-#                'start_frame': p['start_frame'],
-#                'end_frame': p['end_frame'],
-#                'team_id': p['team_id'],
-#                'player_id': p['player_id'],
-#                'duration': p.get('duration', 0)
-#            }
-#            for p in self.possession_history
-#            if p.get('duration', 0) >= self.min_possession_duration
-#        ]
     def get_possession_segments(self):
         """Return possession segments as list of dicts: start, end, player, team, duration, play type"""
         return [

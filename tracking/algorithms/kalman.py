@@ -3,6 +3,7 @@ Kalman filter for motion prediction
 """
 
 import numpy as np
+import logging
 from typing import Tuple
 
 try:
@@ -11,7 +12,7 @@ try:
     FILTERPY_AVAILABLE = True
 except ImportError:
     FILTERPY_AVAILABLE = False
-    print("Warning: filterpy not installed. Kalman filtering disabled.")
+    logging.getLogger(__name__).info("filterpy not installed. Kalman filtering disabled.")
 
 
 class KalmanTracker:

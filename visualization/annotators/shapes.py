@@ -8,6 +8,7 @@ import numpy as np
 from typing import List, Optional, Tuple
 
 from core import Detection, Track
+from core.constants import PLAYER_ID, REF_ID, BALL_ID
 from ..colors import TeamColorManager
 
 
@@ -30,17 +31,16 @@ class ShapeAnnotator:
                 detections: List[Detection],
                 tracks: List[Track]) -> np.ndarray:
         """Add shape annotations to frame"""
-        # Create track lookup
-        track_lookup = {t.id: t for t in tracks}
+        # Build bbox→track lookup (O(n) instead of O(n²))
+        bbox_to_track = {}
+        for t in tracks:
+            if t.current_bbox is not None:
+                bbox_to_track[tuple(t.current_bbox.astype(int))] = t
 
         # Draw detections
         for detection in detections:
-            # Find associated track
-            track = None
-            for t in tracks:
-                if t.current_bbox is not None and np.allclose(t.current_bbox, detection.bbox):
-                    track = t
-                    break
+            # Find associated track via bbox key
+            track = bbox_to_track.get(tuple(detection.bbox.astype(int)))
 
             # Get color
             if track:
@@ -49,9 +49,9 @@ class ShapeAnnotator:
                 color = self.color_manager.get_detection_color(detection)
 
             # Draw shape based on class
-            if detection.class_id in [5, 6] and self.use_ellipse:  # Players and refs
+            if detection.class_id in (PLAYER_ID, REF_ID) and self.use_ellipse:
                 self._draw_ellipse(frame, detection.bbox, color)
-            elif detection.class_id == 1:  # Ball
+            elif detection.class_id == BALL_ID:
                 self._draw_triangle(frame, detection.bbox, color)
             else:
                 self._draw_box(frame, detection.bbox, color)

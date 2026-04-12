@@ -3,8 +3,6 @@ Gradio UI components with file path support
 """
 
 import gradio as gr
-import os
-from pathlib import Path
 
 
 def create_ui_components():
@@ -119,49 +117,3 @@ def create_ui_components():
                     )
                     
     return components
-
-
-def toggle_input_method(method):
-    """Toggle between upload and file path input methods"""
-    if method == "Upload File":
-        return (
-            gr.update(visible=True),   # video_input
-            gr.update(visible=False),  # video_path
-            gr.update(visible=False),  # validate_path_btn
-            gr.update(visible=False),  # path_status
-        )
-    else:  # File Path
-        return (
-            gr.update(visible=False),  # video_input
-            gr.update(visible=True),   # video_path
-            gr.update(visible=True),   # validate_path_btn
-            gr.update(visible=True),   # path_status
-        )
-
-
-def validate_video_path(path):
-    """Validate that the video path exists and is accessible"""
-    if not path:
-        return "❌ Please enter a file path"
-    
-    try:
-        path_obj = Path(path)
-        
-        if not path_obj.exists():
-            return f"❌ File does not exist: {path}"
-        
-        if not path_obj.is_file():
-            return f"❌ Path is not a file: {path}"
-        
-        # Check if it's a video file by extension
-        video_extensions = {'.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.webm', '.m4v'}
-        if path_obj.suffix.lower() not in video_extensions:
-            return f"⚠️ Warning: File extension '{path_obj.suffix}' may not be a video format"
-        
-        # Check file size
-        size_mb = path_obj.stat().st_size / (1024 * 1024)
-        
-        return f"✅ Valid video file found ({size_mb:.1f} MB)"
-        
-    except Exception as e:
-        return f"❌ Error accessing file: {str(e)}"
